@@ -6,44 +6,46 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class UserDao {
+public class UserDao{
+	Connection conn;
+	PreparedStatement ps;
+	ResultSet rs;
+	ConnectionMaker connectionMaker;
 	
-	private Connection getConnection() throws ClassNotFoundException, SQLException {
-		Class.forName("oracle.jdbc.driver.OracleDriver");
-		Connection conn = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:xe", "practice", "1234");
-		return conn;
+	public UserDao (ConnectionMaker connectionMaker) {
+		this.connectionMaker = connectionMaker;
 	}
 	
 	public void add(User user) throws ClassNotFoundException, SQLException {
-		Connection conn = getConnection();
-		PreparedStatement ps = conn.prepareStatement("insert into users(id, name, password) values(?, ?, ?)");
+		conn = connectionMaker.getConnection();
+		ps = conn.prepareStatement("insert into users(id, name, password) values(?, ?, ?)");
 		ps.setString(1, user.getId());
 		ps.setString(2, user.getName());
 		ps.setString(3, user.getPassword());
 		
 		ps.execute();
 		
-		close(null, ps);
+		close();
 	}
 	
 	public User get(String id) throws ClassNotFoundException, SQLException {
-		Connection conn = getConnection();
-		PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?");
+		conn = connectionMaker.getConnection();
+		ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?");
 		ps.setString(1, id);
 		
-		ResultSet rs = ps.executeQuery();
+		rs = ps.executeQuery();
 		rs.next();
 		User user = new User();
 		user.setId(rs.getString("id"));
 		user.setName(rs.getString("name"));
 		user.setPassword(rs.getString("password"));
 		
-		close(rs, ps);
+		close();
 		
 		return user;
 	}
 	
-	public void close (ResultSet rs, PreparedStatement ps) throws SQLException {
+	public void close () throws SQLException {
 		if (rs != null) rs.close();
 		if (ps != null) ps.close();
 		if (conn != null) conn.close();

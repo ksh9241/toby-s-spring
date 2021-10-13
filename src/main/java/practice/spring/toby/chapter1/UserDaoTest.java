@@ -4,7 +4,8 @@ import java.sql.SQLException;
 
 public class UserDaoTest {
 	public static void main(String[] args) throws ClassNotFoundException, SQLException {
-		UserDao dao = new UserDao();
+		// UserDao 와 SimpleConnectionMaker 사이의 의존관계 설정 효과
+		UserDao dao = new NUserDao(new DSimpleConnectionMaker());
 		
 		User user = new User();
 		user.setId("whiteship");
