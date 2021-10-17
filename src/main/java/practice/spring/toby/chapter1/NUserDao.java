@@ -5,8 +5,8 @@ import java.sql.SQLException;
 
 public class NUserDao extends UserDao{
 
-	public NUserDao(ConnectionMaker connectionMaker) {
-		super(connectionMaker);
-	}
+//	public NUserDao(ConnectionMaker connectionMaker) {
+//		super(connectionMaker);
+//	}
 
 }
