@@ -26,8 +26,8 @@ public class UserDao{
 	
 	// 의존관계 검색 방식으로 오브젝트 가져오기
 	public UserDao() {
-		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(DaoFactory.class);
-		this.connectionMaker = context.getBean("connectionMaker", ConnectionMaker.class);
+//		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(DaoFactory.class);
+//		this.dataSource = context.getBean("dataSource", DataSource.class);
 	}
 	
 	
@@ -47,7 +47,7 @@ public class UserDao{
 	}
 	
 	public User get(String id) throws ClassNotFoundException, SQLException {
-		conn = connectionMaker.getConnection();
+		conn = dataSource.getConnection();
 		ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?");
 		ps.setString(1, id);
 		

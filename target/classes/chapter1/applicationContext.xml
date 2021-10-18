@@ -14,9 +14,8 @@
 		<property name="username" value="practice" />
 		<property name="password" value="1234" />
 	</bean>
-	
+	 
 	<bean id="userDao" class="practice.spring.toby.chapter1.UserDao">
 		<property name="dataSource" ref="dataSource" />
 	</bean>
-
 </beans>
