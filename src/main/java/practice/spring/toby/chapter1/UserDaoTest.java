@@ -9,6 +9,7 @@ import org.junit.Test;
 import org.junit.runner.JUnitCore;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.GenericXmlApplicationContext;
+import org.springframework.dao.EmptyResultDataAccessException;
 
 public class UserDaoTest {
 	ApplicationContext context;
@@ -69,6 +70,17 @@ public class UserDaoTest {
 		
 		dao.add(new User("testId3", "testName", "testPw"));
 		assertThat(dao.getCount(), is(3));
+	}
+	
+	@Test(expected = EmptyResultDataAccessException.class) // 테스트 중에 발생할 것으로 기대하는 예외 클래스를 지정해준다.
+	public void getUserFailure() throws SQLException, ClassNotFoundException {
+		context = new GenericXmlApplicationContext("chapter1/applicationContext.xml");
+		
+		UserDao dao = context.getBean("userDao", UserDao.class);
+		dao.deleteAll();
+		assertThat(dao.getCount(), is(0));
+		
+		dao.get("unknown_id"); // 이 메서드 실행 중에 예외가 발생해야 한다.
 		
 	}
 	
