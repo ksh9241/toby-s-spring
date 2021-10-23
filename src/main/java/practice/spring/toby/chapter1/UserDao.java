@@ -7,12 +7,16 @@ import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.dao.EmptyResultDataAccessException;
 
 public class UserDao{
 	// 멀티스레드 환경에서 싱글톤 사용 시 주의사항
+	@Autowired
 	private  ConnectionMaker connectionMaker; // ConnectionMaker 인터페이스는 DB 연결 관련 읽기 전용 인터페이스이므로 인스턴스 변수로 사용해도 문제가 없다.
+	
+	@Autowired
 	private DataSource dataSource;
 	
 	// 아래의 인스턴스 변수 같은 경우 멀티스레드 환경에서 호출하여 데이터를 수정, 반환 등을 처리하기 때문에 인스턴스변수로 사용 시 문제가 된다. 따라서 로컬변수(지역변수) 로 사용해야 한다.

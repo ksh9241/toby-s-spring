@@ -3,8 +3,10 @@ package practice.spring.toby.chapter1;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
+import javax.inject.Inject;
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -13,12 +15,15 @@ import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 @Configuration
 public class DaoFactory {
 	
+	@Inject
+	DataSource dataSource;
+	
 	// 의존관계 주입을 통한 ConnectionMaker 오브젝트 가져오기
 	@Bean
 	public UserDao userDao() {
 		UserDao userDao = new UserDao();
 		//userDao.setConnectionMaker(connectionMaker());
-		userDao.setDataSource(dataSource());
+		//userDao.setDataSource(dataSource);
 		return userDao;
 	}
 	
