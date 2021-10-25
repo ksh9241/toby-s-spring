@@ -20,14 +20,17 @@ public class UserDaoExampleTest {
 	UserDao dao;
 	
 	User user;
+	User user1;
 	@Before
 	public void setUp() {
 		user = new User("1234", "1234", "1234");
+		user1 = new User("아이디", "이름", "비밀번호");
 	}
 	
 	@Test
 	public void deleteAll() throws ClassNotFoundException, SQLException {
 		dao.deleteAll();
 		dao.add(user);
+		dao.anonymousClassAdd(user1);
 	}
 }
