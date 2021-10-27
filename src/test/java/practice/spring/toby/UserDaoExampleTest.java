@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import practice.spring.toby.chapter3.JdbcContext;
 import practice.spring.toby.chapter3.User;
 import practice.spring.toby.chapter3.UserDao;
 
@@ -31,6 +32,6 @@ public class UserDaoExampleTest {
 	public void deleteAll() throws ClassNotFoundException, SQLException {
 		dao.deleteAll();
 		dao.add(user);
-		dao.anonymousClassAdd(user1);
+		//dao.anonymousClassAdd(user1);
 	}
 }
