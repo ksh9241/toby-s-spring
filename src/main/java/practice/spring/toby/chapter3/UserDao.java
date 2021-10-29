@@ -139,15 +139,7 @@ public class UserDao{
 	// 전략패턴의 모습
 	// 컨텍스트 (DBConnection부터 SQL까지) 부분을 분리하여 deleteAll 메서드가 클라이언트가 된다.
 	public void deleteAll() throws SQLException, ClassNotFoundException {
-		// 컨텍스트
-		this.context.WorkWithStatementStrategy(new StatementStrategy() {
-			
-			@Override
-			public PreparedStatement makePreparedStatement(Connection c) throws SQLException {
-				ps = c.prepareStatement("DELETE FROM users");
-				return ps;
-			}
-		});
+		context.executeSql("DELETE FROM users");
 	}
 	
 	public void close () throws SQLException {

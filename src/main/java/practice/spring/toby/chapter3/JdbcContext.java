@@ -30,4 +30,16 @@ public class JdbcContext {
 			if (conn != null) conn.close();
 		}
 	}
+	
+	// 컨텍스트
+	public void executeSql (final String sql) throws SQLException {
+		WorkWithStatementStrategy(
+			new StatementStrategy() {
+				@Override
+				public PreparedStatement makePreparedStatement(Connection c) throws SQLException {
+					return c.prepareStatement(sql);
+				}
+			}
+		);
+	}
 }
