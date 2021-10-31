@@ -1,6 +1,8 @@
 package practice.spring.toby;
 
 import java.sql.SQLException;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -9,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import practice.spring.toby.chapter3.JdbcContext;
 import practice.spring.toby.chapter3.User;
 import practice.spring.toby.chapter3.UserDao;
 
@@ -32,6 +33,17 @@ public class UserDaoExampleTest {
 	public void deleteAll() throws ClassNotFoundException, SQLException {
 		dao.deleteAll();
 		dao.add(user);
+		dao.add(user1);
 		//dao.anonymousClassAdd(user1);
+	}
+	
+	@Test
+	public void selectById() throws SQLException, ClassNotFoundException {
+		System.out.println(dao.get(user.getId()));
+	}
+	
+	@Test
+	public void selectAll() throws SQLException, ClassNotFoundException {
+		assertThat(dao.getUserList().size(), is(2));
 	}
 }

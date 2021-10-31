@@ -8,28 +8,38 @@ public class Calculator {
 	String path = Calculator.class.getResource("").getPath();
 	
 	public Integer calcSum(String fileName) throws IOException {
-		LineCallback callback = new LineCallback() {
+		LineCallback<Integer> callback = new LineCallback<Integer>() {
 			@Override
 			public Integer doSomethingWithLine(String line, Integer value) {
 				return value += Integer.valueOf(line);
 			}
 		};
-		return LineReaderTemplate(fileName, callback, 0);
+		return lineReaderTemplate(fileName, callback, 0);
 	}
 	
 	public int calcMul(String fileName) throws IOException {
-		LineCallback callback = new LineCallback() {
+		LineCallback<Integer> callback = new LineCallback<Integer>() {
 			@Override
 			public Integer doSomethingWithLine(String line, Integer value) {
 				return value *= Integer.valueOf(line);
 			}
 		};
-		return LineReaderTemplate(fileName, callback, 1);
+		return lineReaderTemplate(fileName, callback, 1);
 	}
 	
-	public Integer LineReaderTemplate (String fileName, LineCallback callback, int initVal) throws IOException {
+	public String concatenate(String fileName) throws IOException {
+		LineCallback<String> callback = new LineCallback<String>() {
+			@Override
+			public String doSomethingWithLine(String line, String value) {
+				return value += line;
+			}
+		}; 
+		return lineReaderTemplate(fileName, callback, "");
+	}
+	
+	public <T> T lineReaderTemplate (String fileName, LineCallback<T> callback, T initVal) throws IOException {
 		try (BufferedReader br = new BufferedReader(new FileReader(path + fileName))){
-			Integer res = initVal;
+			T res = initVal;
 			String line = null;
 			while ((line = br.readLine()) != null) {
 				res = callback.doSomethingWithLine(line, res);

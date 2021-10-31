@@ -14,7 +14,7 @@ import practice.spring.toby.chapter3.Calculator;
 
 
 //@RunWith(SpringJUnit4ClassRunner.class) ApplicationContext가 필요없을 경우 주석 제거
-public class CalcSumTest {
+public class CalculatorTest {
 	Calculator calculator;
 	String fileName;
 	
@@ -34,5 +34,11 @@ public class CalcSumTest {
 	public void multipleOfNumbers() throws IOException {
 		int total = calculator.calcMul(fileName);
 		assertThat(total, is(24));
+	}
+	
+	@Test
+	public void concatenate() throws IOException{
+		String result = calculator.concatenate(fileName);
+		assertThat(result, is("1234"));
 	}
 }
