@@ -13,8 +13,29 @@
 		<property name="password" value="1234" />
 	</bean>
 	 
-	<bean id="userDao" class="practice.spring.toby.chapter4.UserDao">
+	<bean id="userDao" class="practice.spring.toby.chapter4.UserDaoJdbc">
 		<property name="dataSource" ref="dataSourceName" />
 	</bean>
 	
+	<bean id="Oracle" class="org.springframework.jdbc.support.SQLErrorCodes">
+		<property name="badSqlGrammarCodes"> <!-- 예외 클래스 종류 -->
+			<value>900,903,917,936,942,17006</value> <!-- 매핑되는 DB에러코드. 에러코드가 세분화된 경우 여러개가 들어가기도 한다. -->
+		</property>
+		
+		<property name="invalidResultSetAccessCodes">
+			<value>17003</value>
+		</property>
+		
+		<property name="duplicateKeyCodes">
+			<value>1</value>
+		</property>
+		
+		<property name="dataIntegrityViolationCodes">
+			<value>1400,1722,2291,2292</value>
+		</property>
+		
+		<property name="dataAccessResourceFailureCodes">
+			<value>17002,17447</value>
+		</property>
+	</bean>
 </beans>

@@ -2,6 +2,7 @@
 잘못된 예외처리 코드 때문에 찾기 힘든 버그를 낳을 수도 있고, 생각하지 않았던 예외상황이 발생했을 때 상상 이상으로 난처해질 수도 있다.
 
 ### 초 난감 예외처리
+
 #####예외 블랙홀 
 
 ```JAVA
@@ -50,6 +51,11 @@ RuntimeException을 상속한 예외들은 명시적인 예외처리를 강제�
 catch (SQLException e) {
 	if (e.getErrorCode() == MysqlErrorNumbers.ER_DUP_ENTRY) throw DuplicateUserIdException(e); // 중첩예외
 	else throw e;
+	
+	// 예외 처리 두가지 방법
+	throw DuplicateUserldException(e); // 중첩예외
+	    or
+            throw DuplicateUserldException().initCause(e); // 예외 전환
 }
 ```
 
@@ -60,4 +66,85 @@ catch (SQLException e) {
 
 ##### 애플리케이션 예외
 시스템 또는 외부의 예외상황이 원인이 아니라 애플리케이션 자체의 로직에 의해 의도적으로 발생시키고, 반드시 catch해서 무엇인가 조치를 취하도록 요구하는 예외를 애플리케이션 예외라고 한다.
-만약 출금 서비스를 만든다고 가정해보자면 잔고를 확인하지 않고 요청하는 금액을 무차별적으로 출금해주는 서비스는 없을 것이다. 이럴 때 DB에 출금요청 금액만큼 출금 후 잔액 부족같은 상황을 예외로 잡아서 요청한 메서드에 throw하게되면 금전적인 문제의 위험이 줄어든다. 이러한 상황은 런타임 예외로 만들어두는 것보다 필수로 체크해야하는 체크 예외로 만들어두느 ㄴ것이 안전하다.
+만약 출금 서비스를 만든다고 가정해보자면 잔고를 확인하지 않고 요청하는 금액을 무차별적으로 출금해주는 서비스는 없을 것이다. 이럴 때 DB에 출금요청 금액만큼 출금 후 잔액 부족같은 상황을 예외로 잡아서 요청한 메서드에 throw하게되면 금전적인 문제의 위험이 줄어든다. 이러한 상황은 런타임 예외로 만들어두는 것보다 필수로 체크해야하는 체크 예외로 만들어두는 것이 안전하다.
+
+##### SQLException
+체크예외인 SQLException은 99%의 경우로 코드레벨에서는 복구할 방법이 없는 예외이다. 프로그램의 오류 또는 개발자의 부주의에 의해 발생하는 경우이거나, 통제할 수 없는 외부상황에 의해 발생되는 예외이기 때문이다. 그럼 왜 체크예외인가? 그 이유는 개발자가 쿼리문을 잘못 작성했던 외부상황 (네트워크환경 등.)에 문제가 생겼던 빠르게 개발자에게 문제점을 알려서 문제를 인지하게 해야하기 때문이다. 그래서 SQLException이 JdbcTemplate에서 throw하지않고 RuntimeException인 DataAccessException 으로 포장해서 처리하는 이유도 그 때문이다. 예외상황을 알리지만 해결방안이 없는경우가 대다수이기 때문에 throws를 통한 다른 메서드에 예외를 전가하지 않는 것이다.
+
+##### JDBC의 한계
+JDBC는 자바를 이용해 DB에 접근하는 방법을 추상화된 API형태로 정의해놓고, 각 DB 업체가 JDBC 표준을 따라 만들어진 드라이버를 제공하게 해준다. 내부 구현은 다르겠지만 JDBC의 Connection, Statement, ResultSet 등의 표준 인터페이스를 통해 그 기능을 제공해주기 때문에 JDBC만 숙지한다면 일관된 방법으로 프로그램을 개발할 수 있다. 이러한 장점으로 다양한 DB 프로그램 사용의 장벽을 낮추지만 DB를 자유롭게 변경해서 사용할 수 있는 유연한 코드를 보장해주지는 못한다. 그 이유에는 두 가지가 있다.
+1. 비표준 SQL
+DB마다 비표준 내장함수가 존재하기 때문이다. 가령 mySQL과 Oracle을 봐도 그렇다. 어디부터 어디까지의 결과를 출력하고 싶을 때 Oracle의 경우 between을 통해 시작값과 종료값을 적는다. 하지만 mySQL의 경우 limit을 통해서 범위를 지정한다. 이런식의 비표준 SQL 때문에 DAO에 개발자가 작성한 sql도 특정 DB에 종속적인 코드가 된다.
+
+2. 호환성 없는 SQLException의 DB 에러정보
+두 번째 문제는 예외문제이다. DB를 사용하다보면 발생할 수 있는 예외가 존재하는데 SQL 문법오류도 있고, DB커넥션도 있으며, 테이블 혹은 컬럼이 존재하지 않거나, 키가 중복되거나, 다양한 제약조건을 위배하는 시도를 한 경우, 데드락에 걸렸거나 락을 얻지 못했을 경우 등 수백여 가지에 이른다. JDBC API는 이러한 많은 예외상황을 SQLException 하나만을 던지도록 설계되어 있다. 결국 호환성 없는 에러 코드와 표준을 잘 따르지 않는 상태 코드를 가진 SQLException만으로 DB에 독립적인 유연한 코드를 작성하는건 불가능에 가깝다.
+
+##### DB 에러코드 매핑을 통한 전환
+
+```JAVA
+	<bean id="Oracle" class="org.springframework.jdbc.support.SQLErrorCodes">
+		<property name="badSqlGrammarCodes"> <!-- 예외 클래스 종류 -->
+			<value>900,903,917,936,942,17006</value> <!-- 매핑되는 DB에러코드. 에러코드가 세분화된 경우 여러개가 들어가기도 한다. -->
+		</property>
+		
+		<property name="invalidResultSetAccessCodes">
+			<value>17003</value>
+		</property>
+		
+		<property name="duplicateKeyCodes">
+			<value>1</value>
+		</property>
+		
+		<property name="dataIntegrityViolationCodes">
+			<value>1400,1722,2291,2292</value>
+		</property>
+		
+		<property name="dataAccessResourceFailureCodes">
+			<value>17002,17447</value>
+		</property>
+	</bean>
+```
+
+DB전용 에러코드를 미리 빈으로 생성 후 전환시켜둔 뒤 JdbcTemplate를 통해 DB와 통신하게 되면 예외가 발생했을 때 value값에 있는 코드에 맞는 예외가 반환된다. 이렇게 사용하는 DB별 전용코드를 만들어서 JdbcTemplate의 SQLException만 던져주는 문제를 조금은 해결할 수 있다.
+
+##### DAO 인터페이스와 구현의 분리
+DAO를 굳이 따로 만들어서 사용하는 이유는 무엇일까? 가장 중요한 이유는 데이터 엑세스 로직을 담은 코드를 성격이 다른 코드에서 분리해놓기 위해서다. 또한 분리된 DAO는 전략 패턴을 적용해 구현 방법을 변경해서 사용할 수 있게 만들기 위해서이기도 하다. DAO를 사용하는 쪽에선 DAO가 내부에서 어떤 데이터 액세스 기술을 사용하는지 신경 쓰지 않아도 된다. 그런 면에서 DAO는 인터페이스를 사용해 구체적은 클래스 정보와 구현 방법을 감추고 DI를 통해 제공되도록 만드는 것이 바람직하다.
+
+```JAVA
+public interface UserDao {
+	public void add(User user) throws PersistentException;	// JAP
+	public void add(User user) throws HibernateException;	// Hibernate
+	public void add(User user) throws JdoException;		// JDO
+}
+```
+위 소스처럼 DAO 메서드를 추상화했지만 구현 기술마다 던지는 예외가 다르기 때문에 문제가 발생한다.
+
+```JAVA
+public interface UserDao {
+	public void add(User user) throws Exception;	// JAP, Hibernate, JDO
+}
+```
+위 소스는 한번에 처리할 수 있지만 무책임하다.
+그러나 걱정할 것 없다. JDBC보다 늦게 등장한 JDO, Hibernate, JPA등의 기술은 SQLException 같은 체크 예외 대신 런타임 예외를 사용하기 때문에 throws선언해 주지 않아도 된다.
+
+```JAVA
+public interface UserDao {
+	public void add(User user) ;	// JAP, Hibernate, JDO, JDBC
+}
+```
+결론은 그냥 throws를 하지않아도 다양한 기술을 사용할 수 있지만 data Access관련 예외가 모두 무시할 수 있는 것은 아니다. 예를 들면 PK중복 같은 경우는 JDBC, JPA, Hibernate 모두 다른 예외를 던지기 때문에 어쩔수 없이 클라이언트가 DAO의 기술에 의존적이 될 수밖에 없다.
+
+##### DataAccessException 사용 시 주의사항
+DuplicateKeyException의 경우 JPA, Hibernate 등은 해당되지 않고, JDBC를 이용했을 때만 발생한다. 이유는 SQLException에 담긴 DB의 에러코드를 바로 해석하는 JDBC의 경우와 달리 JPA나 하이버네이트 등에서는 각 기술이 재정의한 예외를 가져와 스프링이 최종적으로 DataAccessException으로 변환하는데 DB의 에러코드와 달리 이런 예외들은 세분화되어 있지 않기 때문이다. DataAccessException이 기술에 상관없이 어느정도 추상화된 공통 예외로 변환해주긴 하지만 근본적인 한계 때문에 완벽하다고 기대할 수는 없다. 따라서 사용에 주의를 기울여야 한다. 테스트를 통해 미리 학습 테스트를 만들어서 실제로 전환되는 예외의 종류를 확인해둘 필요가 있다.
+
+### 정리
+이 장에서는 엔터프라이즈 애플리케이션에서 사용할 수 있는 바람직한 예외처리 방법은 무엇인지 살펴봤다.
+- 예외를 잡아서 아무런 조치를 취하지 않거나 의미없는 throws 선언을 남발하는 것은 위험하다.
+- 예외는 복구하거나 예외처리 오브젝트로 의도적으로 전달하거나 적절한 예외로 전환해야 한다.
+- 좀 더 의미 있는 예외로 변경하거나, 불필요한 catch/throws를 피하기 위해 런타임 예외로 포장하는 두 가지 방법의 예외 전환이 있다.
+- 복구할 수 없는 예외는 가능한 한 빨리 런타임 예외로 전환하는 것이 바람직하다.
+- 애플리케이션의 로직을 담기 위한 예외는 체크 예외로 만든다.
+- JDBC의 SQLException은 대부분 복구할 수 없는 예외이므로 런타임 예외로 포장해야 한다.
+- SQLException의 에러 코드는 DB에 종속되기 떄문에 DB에 독립적인 예외로 전환될 필요가 있다.
+- 스프링은 DataAccessException을 통해 DB에 독립적으로 적용 가능한 추상화된 런타임 예외 계층을 제공한다.
+- DAO를 데이터 액세스 기술에서 독립시키려면 인터페이스 도입과 런타임 예외 전환, 기술에 독립적인 추상화된 예외로 전환이 필요하다.
