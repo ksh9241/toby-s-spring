@@ -1,24 +1,28 @@
 package practice.spring.toby.chapter5;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Service;;
 
 @Service
-public class UserServiceImple implements UserService {
+public class UserTransactionExceptionService implements UserService {
 	
-	public static final int MIN_LOGCOUNT_FOR_SILVER = 50;
-	public static final int MIN_RECCOMEND_FOR_GOLD = 30;
-	
-	@Autowired
 	UserDao userDao;
 	
+	private String id;
 	
-	public void setUserDao (UserDao userDao) {
+	public UserTransactionExceptionService() {}
+	
+	public UserTransactionExceptionService (String id) {
+		this.id = id;
+	}
+	
+	@Override
+	public void setUserDao(UserDao userDao) {
 		this.userDao = userDao;
 	}
-
 
 	@Override
 	public void upgradeLevels() {
@@ -30,12 +34,13 @@ public class UserServiceImple implements UserService {
 		}
 	}
 	
-	protected void upgradeLevel(User u) {
+	private void upgradeLevel(User u) {
+		if (u.getId().equals(this.id)) throw new TestUserServiceException();
+		
 		u.upgradeLevel();
 		userDao.update(u);
 	}
-
-
+	
 	private boolean changeUpgradeLevel (User user) {
 		Level currentLevel = user.getLevel();
 		switch (currentLevel) {
@@ -46,11 +51,10 @@ public class UserServiceImple implements UserService {
 		}
 	}
 
-
 	@Override
 	public void add(User user) {
 		if (user.getLevel() == null) user.setLevel(Level.BASIC);
 		userDao.add(user);
 	}
-	
+
 }

@@ -1,6 +1,7 @@
 package practice.spring.toby;
 
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.hamcrest.core.Is.is;
 
 import java.util.Arrays;
@@ -14,14 +15,19 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import practice.spring.toby.chapter5.Level;
+import practice.spring.toby.chapter5.TestUserServiceException;
 import practice.spring.toby.chapter5.User;
 import practice.spring.toby.chapter5.UserDao;
 import practice.spring.toby.chapter5.UserService;
+import practice.spring.toby.chapter5.UserTransactionExceptionService;
+
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("/chapter5/applicationContext.xml")
 public class chapter5UserServiceTest {
-
+	
 	@Autowired
 	UserDao dao;
 	
@@ -32,31 +38,50 @@ public class chapter5UserServiceTest {
 	
 	@Before
 	public void setUp() {
+		
 		// 경계값 테스트 값
 		users = Arrays.asList(
-			new User("1","1","1",Level.BASIC, 49, 0),	
-			new User("2","2","2",Level.BASIC, 50, 0),	
-			new User("3","3","3",Level.SILVER, 60, 29),	
-			new User("4","4","4",Level.SILVER, 60, 30),	
+			new User("1","1","1",Level.BASIC,MIN_LOGCOUNT_FOR_SILVER - 1, 0),	
+			new User("2","2","2",Level.BASIC, MIN_LOGCOUNT_FOR_SILVER, 0),	
+			new User("3","3","3",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD - 1),	
+			new User("4","4","4",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD),	
 			new User("5","5","5",Level.GOLD, 100, 100)	
 		);
 	}
 	
 	@Test
+	public void upgradeAllOrNothing() {
+		UserTransactionExceptionService service = new UserTransactionExceptionService(users.get(3).getId());
+		service.setUserDao(dao);
+		
+		dao.deleteAll();
+		
+		for (User u : users) dao.add(u);
+		
+		try {
+			service.upgradeLevels();
+			fail("TestUserServiceException expected");
+		} catch (TestUserServiceException e) {
+		}
+		
+		checkLevel(users.get(1), false);
+	}
+	
+	//@Test
 	public void upgradeLevels () {
 		dao.deleteAll();
 		
 		for (User u : users) dao.add(u);
 		
 		service.upgradeLevels();
-		checkLevel(users.get(0), Level.BASIC);
-		checkLevel(users.get(1), Level.SILVER);
-		checkLevel(users.get(2), Level.SILVER);
-		checkLevel(users.get(3), Level.GOLD);
-		checkLevel(users.get(4), Level.GOLD);
+		checkLevel(users.get(0), false);
+		checkLevel(users.get(1), true);
+		checkLevel(users.get(2), false);
+		checkLevel(users.get(3), true);
+		checkLevel(users.get(4), false);
 	}
 	
-	@Test
+	//@Test
 	public void newUserLevel () {
 		dao.deleteAll();
 		
@@ -72,13 +97,18 @@ public class chapter5UserServiceTest {
 		
 		User resultUser1 = dao.get(user1.getId());
 		User resultUser2 = dao.get(user2.getId());
-		checkLevel(resultUser1, Level.BASIC);
-		checkLevel(resultUser2, Level.SILVER);
+		assertThat(resultUser1.getLevel(), is(Level.SILVER));
+		//checkLevel(resultUser1, Level.BASIC);
+		//checkLevel(resultUser2, Level.SILVER);
 	}
 	
-	
-	private void checkLevel (User user, Level expectedLevel) {
+	private void checkLevel (User user, boolean upgraded) {
 		User userUpdate = dao.get(user.getId());
-		assertThat(userUpdate.getLevel(), is(expectedLevel));
+		if (upgraded) {
+			assertThat(userUpdate.getLevel(), is(user.getLevel().nextLevel())); // 업그레이드가 일어났는지 확인
+		} else {
+			assertThat(userUpdate.getLevel(), is(user.getLevel())); 			// 업그레이드가 일어나지 않았는지 확인
+		}
+		
 	}
 }
