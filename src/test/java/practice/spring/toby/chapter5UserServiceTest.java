@@ -1,16 +1,22 @@
 package practice.spring.toby;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.hamcrest.core.Is.is;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
 
 import java.util.Arrays;
 import java.util.List;
+
+import javax.sql.DataSource;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -19,10 +25,7 @@ import practice.spring.toby.chapter5.TestUserServiceException;
 import practice.spring.toby.chapter5.User;
 import practice.spring.toby.chapter5.UserDao;
 import practice.spring.toby.chapter5.UserService;
-import practice.spring.toby.chapter5.UserTransactionExceptionService;
-
-import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
-import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;;
+import practice.spring.toby.chapter5.UserTransactionExceptionService;;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("/chapter5/applicationContext.xml")
@@ -35,6 +38,9 @@ public class chapter5UserServiceTest {
 	UserService service;
 	
 	List<User> users;
+	
+	@Autowired
+	DataSource dataSource;
 	
 	@Before
 	public void setUp() {
@@ -50,10 +56,10 @@ public class chapter5UserServiceTest {
 	}
 	
 	@Test
-	public void upgradeAllOrNothing() {
+	public void upgradeAllOrNothing() throws Exception{
 		UserTransactionExceptionService service = new UserTransactionExceptionService(users.get(3).getId());
 		service.setUserDao(dao);
-		
+		service.setDataSource(dataSource);
 		dao.deleteAll();
 		
 		for (User u : users) dao.add(u);
@@ -67,8 +73,12 @@ public class chapter5UserServiceTest {
 		checkLevel(users.get(1), false);
 	}
 	
-	//@Test
+	@Test
 	public void upgradeLevels () {
+		UserTransactionExceptionService service = new UserTransactionExceptionService();
+		service.setUserDao(dao);
+		service.setDataSource(dataSource);
+		
 		dao.deleteAll();
 		
 		for (User u : users) dao.add(u);

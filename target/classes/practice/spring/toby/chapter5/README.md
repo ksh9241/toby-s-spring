@@ -33,3 +33,37 @@ DB는 그 자체로 완벽한 트랜잭션을 지원한다. 하나의 SQL 명령
 - 도중에 예외가 발생하였을 경우 Connection의 Rollback()를 호출 후 Connection을 반환한다.
 
 트랜잭션 동기화 저장소는 작업 스레드마다 독립적으로 Connection 오브젝트를 저장하고 관리하기 때문에 다중 사용자를 처리하는 서버의 멀티스레드 환경에서도 충돌이 날 염려는 없다.
+
+##### JdbcTemplate과 트랜잭션 동기화
+JdbcTemplate의 동작원리는 미리 생성돼서 트랜잭션 동기화 저장소에 등록된 DB커넥션이나 트랜잭션이 없는 경우에는 직접 DB 커넥션을 만들고 트랜잭션을 시작해서 JDBC 작업을 진행한다. 만약 메서드에서 미리 동기화를 시작해놓았다면 그때부터 실행되는 JdbcTemplate의 메서드에서는 직접 DB 커넥션을 만드는 대신 트랜잭션 동기화 저장소에 들어있는 DB 커넥션을 가져와서 사용한다. 이를 통해 이미 시작된 트랜잭션에 참여하는 것이다.
+
+##### 트랜잭션 서비스 추상화
+기술과 환경에 종속되는 트랜잭션 경계설정 코드 : 한 개 이상의 DB로의 작업을 하나의 트랜잭션으로 만드는건 JDBC의 커넥션을 이용한 트랜잭션 방식인 로컬 트랜잭션으로는 불가능하다. 왜냐하면 로컬 트랜잭션은 하나의 DB 커넥션에 종속되기 때문이다. 따라서 각 DB와 독립적으로 만들어지는 커넥션을 통해서가 아니라 별도의 트랜잭션 관리자를 통해 트랜잭션을 관리하는 글로벌 트랜잭션 방식을 사용해야 한다. 
+자바는 JDBC 외에 이런 글로벌 트랜잭션을 지원하는 트랜잭션 매니저를 지원하기 위한 API인 JTA (Java Transaction API) 를 제공하고 있다.
+
+##### 스프링의 트랜잭션 서비스 추상화
+스프링이 제공하는 트랜잭션 경계설정을 위한 추상 인터페이스는 PlatformTransactionManager다. JDBC의 로컬 트랜잭션을 이용한다면 PlatformTransactionManager를 구현한 DataSourceTransactionManager를 사용하면 된다. 사용할 DB의 DataSource를 생성자 파라미터로 넣으면서 DataSourceTransactionManager의 오브젝트를 만든다.
+
+```JAVA
+PlatformTransactionManager transactionManager = new DataSourceTransactionManager(dataSource);
+TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
+// DefaultTransactionDefinition 오브젝트는 트랜잭션에 대한 속성을 담고 있다.
+// TransactionStatus는 트랜잭션에 대한 조작이 필요할 때 PlatformTransactionManager 메서드의 파라미터로 전달해주면 된다.
+		
+		try {
+			List<User> users = userDao.getAll();
+			for (User user : users) {
+				if (changeUpgradeLevel(user)) {
+					upgradeLevel(user);
+				}
+			}
+			transactionManager.commit(status);
+		} catch (Exception e) {
+			transactionManager.rollback(status);
+			throw e;
+		} 
+```
+
+##### 트랜잭션 기술 설정의 분리
+트랜잭션 추상화 API를 적용한 UserService 코드를 JTA를 이용하는 글로벌 트랜잭션으로 변경하려면 구현 클래스를 DataSourceTransactionManager에서 JTATransactionManager로 바꿔주기만 하면 된다.
+JTATransactionManager로 는 주요 자바 서버에서 제공하는 JTA 정보를 JNDI를 통해 자동으로 인식하는 기능을 갖고 있다. 따라서 별다른 설정 없이 JTATransactionManager를 사용하기만 해도 서버의 트랜잭션 매니저/서비스와 연동해서 동작하낟.

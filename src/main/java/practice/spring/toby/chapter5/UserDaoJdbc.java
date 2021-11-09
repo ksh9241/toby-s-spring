@@ -10,6 +10,8 @@ import javax.sql.DataSource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Repository;
 
 import practice.spring.toby.chapter4.DuplicateUserIdException;
 
@@ -37,6 +39,7 @@ public class UserDaoJdbc implements UserDao{
 	public void setDataSource (DataSource dataSource) {
 		this.dataSource = dataSource;
 		jdbcTemplate = new JdbcTemplate(dataSource);
+		
 	}
 	
 	public void add (User user) {
