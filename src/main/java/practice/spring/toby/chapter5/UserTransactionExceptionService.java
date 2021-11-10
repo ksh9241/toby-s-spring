@@ -2,42 +2,56 @@ package practice.spring.toby.chapter5;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
 
-import java.sql.Connection;
 import java.util.List;
 
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.mail.MailSender;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
-import org.springframework.transaction.support.TransactionSynchronizationManager;;
+
 
 @Service
-public class UserTransactionExceptionService{
+public class UserTransactionExceptionService {
 	
 	@Autowired
 	UserDao userDao;
 	
-	private String id;
-	
 	@Autowired
 	DataSource dataSource;
 	
+	@Autowired
 	PlatformTransactionManager transactionManager;
 	
+	@Autowired
+	MailSender mailSender;
+	
+	private String id;
 	public UserTransactionExceptionService() {}
 	
 	public UserTransactionExceptionService (String id) {
 		this.id = id;
 	}
 	
+	public void setTransactionManager (PlatformTransactionManager transactionManager) {
+		this.transactionManager = transactionManager;
+	}
+	
+	public void setUserDao (UserDao userDao) {
+		this.userDao = userDao;
+	}
+	
+	public void setMailSender (MailSender mailSender) {
+		this.mailSender = mailSender;
+	}
+	
 	public void upgradeLevels() {
 		// 트랜잭션 추상화 API를 적용
-		PlatformTransactionManager transactionManager = new DataSourceTransactionManager(dataSource);
 		TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition()); 
 		// DefaultTransactionDefinition 오브젝트는 트랜잭션에 대한 속성을 담고 있다.
 		// TransactionStatus는 트랜잭션에 대한 조작이 필요할 때 PlatformTransactionManager 메서드의 파라미터로 전달해주면 된다.
@@ -75,8 +89,19 @@ public class UserTransactionExceptionService{
 		
 		u.upgradeLevel();
 		userDao.update(u);
+		sendUpgradeEmail(u);
 	}
 	
+	private void sendUpgradeEmail(User u) {
+		SimpleMailMessage mailMessage = new SimpleMailMessage();
+		mailMessage.setTo(u.getEmail());
+		mailMessage.setFrom("useradmin@ksug.org");
+		mailMessage.setSubject("Upgrade 안내");
+		mailMessage.setText("사용자님의 등급이 " + u.getLevel().name());
+		
+		mailSender.send(mailMessage);
+	}
+
 	private boolean changeUpgradeLevel (User user) {
 		Level currentLevel = user.getLevel();
 		switch (currentLevel) {
@@ -91,5 +116,7 @@ public class UserTransactionExceptionService{
 		if (user.getLevel() == null) user.setLevel(Level.BASIC);
 		userDao.add(user);
 	}
+
+	
 
 }

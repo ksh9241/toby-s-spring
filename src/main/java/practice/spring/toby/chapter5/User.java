@@ -10,9 +10,11 @@ public class User {
 	int login;
 	int recommend;
 	
+	String email;
+	
 	public User() {}
 	
-	public User(String id, String name, String password, Level level, int login, int recommend) {
+	public User(String id, String name, String password, Level level, int login, int recommend, String email) {
 		super();
 		this.id = id;
 		this.name = name;
@@ -20,6 +22,7 @@ public class User {
 		this.level = level;
 		this.login = login;
 		this.recommend = recommend;
+		this.email = email;
 	}
 	
 	public void upgradeLevel () {
@@ -77,6 +80,14 @@ public class User {
 	
 	public void setLevel (Level level) {
 		this.level = level;
+	}
+	
+	public String getEmail () {
+		return this.email;
+	}
+	
+	public void setEmail (String email) {
+		this.email = email;
 	}
 	
 	@Override

@@ -9,16 +9,14 @@ import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_G
 import java.util.Arrays;
 import java.util.List;
 
-import javax.sql.DataSource;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.datasource.SimpleDriverDataSource;
+import org.springframework.mail.MailSender;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import practice.spring.toby.chapter5.Level;
 import practice.spring.toby.chapter5.TestUserServiceException;
@@ -40,18 +38,21 @@ public class chapter5UserServiceTest {
 	List<User> users;
 	
 	@Autowired
-	DataSource dataSource;
+	PlatformTransactionManager transactionManager;
+	
+	@Autowired
+	MailSender mailSender;
 	
 	@Before
 	public void setUp() {
 		
 		// 경계값 테스트 값
 		users = Arrays.asList(
-			new User("1","1","1",Level.BASIC,MIN_LOGCOUNT_FOR_SILVER - 1, 0),	
-			new User("2","2","2",Level.BASIC, MIN_LOGCOUNT_FOR_SILVER, 0),	
-			new User("3","3","3",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD - 1),	
-			new User("4","4","4",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD),	
-			new User("5","5","5",Level.GOLD, 100, 100)	
+			new User("1","1","1",Level.BASIC,MIN_LOGCOUNT_FOR_SILVER - 1, 0, null),	
+			new User("2","2","2",Level.BASIC, MIN_LOGCOUNT_FOR_SILVER, 0, null),	
+			new User("3","3","3",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD - 1, null),	
+			new User("4","4","4",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD, null),	
+			new User("5","5","5",Level.GOLD, 100, 100, null)	
 		);
 	}
 	
@@ -59,7 +60,8 @@ public class chapter5UserServiceTest {
 	public void upgradeAllOrNothing() throws Exception{
 		UserTransactionExceptionService service = new UserTransactionExceptionService(users.get(3).getId());
 		service.setUserDao(dao);
-		service.setDataSource(dataSource);
+		service.setTransactionManager(transactionManager);
+		service.setMailSender(mailSender);
 		dao.deleteAll();
 		
 		for (User u : users) dao.add(u);
@@ -76,13 +78,13 @@ public class chapter5UserServiceTest {
 	@Test
 	public void upgradeLevels () {
 		UserTransactionExceptionService service = new UserTransactionExceptionService();
-		service.setUserDao(dao);
-		service.setDataSource(dataSource);
 		
 		dao.deleteAll();
-		
 		for (User u : users) dao.add(u);
 		
+		service.setUserDao(dao);
+		service.setTransactionManager(transactionManager);
+		service.setMailSender(mailSender);
 		service.upgradeLevels();
 		checkLevel(users.get(0), false);
 		checkLevel(users.get(1), true);
@@ -100,7 +102,7 @@ public class chapter5UserServiceTest {
 		user1.setName("1");
 		user1.setPassword("1");
 		
-		User user2 = new User("2", "2", "2", Level.SILVER, 50, 0);
+		User user2 = new User("2", "2", "2", Level.SILVER, 50, 0, null);
 		
 		service.add(user1); 
 		service.add(user2); 

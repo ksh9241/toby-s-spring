@@ -44,7 +44,7 @@ public class UserDaoJdbc implements UserDao{
 	
 	public void add (User user) {
 		try {
-			jdbcTemplate.update("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?)", user.getId(), user.getName(), user.getPassword(), user.getLogin(), user.getRecommend(), user.getLevel().intValue());
+			jdbcTemplate.update("INSERT INTO users VALUES(?, ?, ?, ?, ?, ?, ?)", user.getId(), user.getName(), user.getPassword(), user.getLogin(), user.getRecommend(), user.getLevel().intValue(), user.getEmail());
 		} catch (DuplicateKeyException e) {
 			throw new DuplicateUserIdException(e);
 		}
