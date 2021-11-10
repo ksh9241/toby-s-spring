@@ -75,11 +75,11 @@ JTATransactionManager로 는 주요 자바 서버에서 제공하는 JTA 정보�
 트랜잭션 추상화는 이와는 좀 다르다. 애플리케이션의 비즈니스 로직과 그 하위에서 동작하는 로우레벨의 트랜잭션 기술이라는 아예 다른 계층의 특성을 갖는 코드를 분리한 것이다.
 
 ##### 계층과 책임의 분리
-| UserService	    ---> UserDao | 애플리케이션계층 |
+UserService	    ---> UserDao : 애플리케이션계층 
         ↓		    	↓
-| TransactionManager ---> DataSource | 서비스 추상화 계층 |
+TransactionManager ---> DataSource : 서비스 추상화 계층 
         ↓		    	↓
-| JDBC, JTA, Connection Pooling, JNDI, WAS, Database... | 기술 서비스 계층 |
+JDBC, JTA, Connection Pooling, JNDI, WAS, Database... : 기술 서비스 계층 
 
 ##### 단일 책임 원칙
 적절한 분리가 가져오는 특징은 객체지향 설계의 원칙 중의 하나인 단일 책임 원칙으로 설명할 수 있다. 단일 책임 원칙은 하나의 모듈은 한 가지 책임을 가져야 한다는 의미다. 하나의 모듈이 바뀌는 이유는 한 가지여야 한다고 설명할 수도 있다.
