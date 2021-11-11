@@ -5,7 +5,7 @@ import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 
 // 인터페이스를 구현할 뿐 메서드 오버라이드는 하지않았다.
-public class DumyMailSender implements MailSender {
+public class DummyMailSender implements MailSender {
 
 	@Override
 	public void send(SimpleMailMessage simpleMessage) throws MailException {

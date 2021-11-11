@@ -2,6 +2,7 @@ package practice.spring.toby;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
@@ -14,11 +15,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailSender;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import practice.spring.toby.chapter5.Level;
+import practice.spring.toby.chapter5.MockMailSender;
 import practice.spring.toby.chapter5.TestUserServiceException;
 import practice.spring.toby.chapter5.User;
 import practice.spring.toby.chapter5.UserDao;
@@ -48,12 +51,33 @@ public class chapter5UserServiceTest {
 		
 		// 경계값 테스트 값
 		users = Arrays.asList(
-			new User("1","1","1",Level.BASIC,MIN_LOGCOUNT_FOR_SILVER - 1, 0, null),	
-			new User("2","2","2",Level.BASIC, MIN_LOGCOUNT_FOR_SILVER, 0, null),	
-			new User("3","3","3",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD - 1, null),	
-			new User("4","4","4",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD, null),	
-			new User("5","5","5",Level.GOLD, 100, 100, null)	
+			new User("1","1","1",Level.BASIC,MIN_LOGCOUNT_FOR_SILVER - 1, 0, "NO"),	
+			new User("2","2","2",Level.BASIC, MIN_LOGCOUNT_FOR_SILVER, 0, "YES"),	
+			new User("3","3","3",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD - 1, "NO"),	
+			new User("4","4","4",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD, "YES"),	
+			new User("5","5","5",Level.GOLD, 100, 100, "NO")	
 		);
+	}
+	
+	@Test
+	@DirtiesContext // 컨텍스트의 DI 설정을 변경하는 테스트라는 것을 알려준다.
+	public void upgradeLevels_mock () throws Exception {
+		dao.deleteAll();
+		for (User u : users) dao.add(u); 
+		
+		MockMailSender mockMailSender = new MockMailSender();
+		service.setMailSender(mockMailSender);
+		
+		service.upgradeLevels();
+		
+		checkLevel(users.get(0), false);
+		checkLevel(users.get(1), true);
+		checkLevel(users.get(2), false);
+		checkLevel(users.get(3), true);
+		checkLevel(users.get(4), false);
+		
+		List<String> result = mockMailSender.getRequests();
+		assertTrue(result.get(0).contains(result.get(1)));
 	}
 	
 	@Test

@@ -8,4 +8,6 @@ public interface UserService {
 	public void upgradeLevels ();
 
 	public void add(User user1);
+
+	public void setMailSender(MockMailSender mockMailSender);
 }

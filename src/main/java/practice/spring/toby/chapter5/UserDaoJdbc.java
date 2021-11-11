@@ -32,6 +32,7 @@ public class UserDaoJdbc implements UserDao{
 			user.setLogin(rs.getInt(4));
 			user.setRecommend(rs.getInt(5));
 			user.setLevel(Level.valueOf(Integer.parseInt(rs.getString(6))));
+			user.setEmail(rs.getString(7));
 			return user;
 		}
 	};

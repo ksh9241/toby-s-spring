@@ -30,7 +30,7 @@
 	</bean>
 	
 	<!-- JavaMail 테스트용 빈 -->
-	<bean id="mailSender" class="practice.spring.toby.chapter5.DumyMailSender" />
+	<bean id="mailSender" class="practice.spring.toby.chapter5.DummyMailSender" />
 	<!-- 
 	<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
 		<property name="host" value="mail.server.com" />
