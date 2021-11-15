@@ -1,6 +1,9 @@
 package practice.spring.toby.chapter6;
 
-import static org.junit.Assert.assertThrows;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
+import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
+
+import java.util.List;
 
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
@@ -13,6 +16,7 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
 public class UserServiceTx implements UserService {
 	UserService userService;
 	PlatformTransactionManager transactionManager;
+	UserDao dao;
 	
 	public void setTransactionManager (PlatformTransactionManager transactionManager) {
 		this.transactionManager = transactionManager;
@@ -22,14 +26,17 @@ public class UserServiceTx implements UserService {
 		this.userService = userService;
 	}
 	
+	public void setUserDao (UserDao dao) {
+		this.dao = dao;
+	}
+	
 	@Override
 	public void upgradeLevels() {
 		TransactionStatus status = this.transactionManager.getTransaction(new DefaultTransactionDefinition());
-		
 		try {
 			userService.upgradeLevels();
-			this.transactionManager.commit(status);
-		} catch (Exception e) {
+			transactionManager.commit(status);
+		} catch (RuntimeException e) {
 			this.transactionManager.rollback(status);
 			throw e;
 		}

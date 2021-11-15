@@ -2,6 +2,7 @@ package practice.spring.toby.chapter6;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.sql.DataSource;
@@ -9,11 +10,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 
 @Service
@@ -21,6 +18,9 @@ public class UserServiceImple implements UserService{
 	
 	@Autowired
 	UserDao userDao;
+	
+	@Autowired
+	MailSender mailSender;
 	
 	private String id;
 	public UserServiceImple() {}
@@ -32,6 +32,10 @@ public class UserServiceImple implements UserService{
 	
 	public void setUserDao (UserDao userDao) {
 		this.userDao = userDao;
+	}
+	
+	public void setMailSender (MailSender mailSender) {
+		this.mailSender = mailSender;
 	}
 	
 	@Override
@@ -55,6 +59,17 @@ public class UserServiceImple implements UserService{
 		
 		u.upgradeLevel();
 		userDao.update(u);
+		sendUpgradeEmail(u);
+	}
+	
+	private void sendUpgradeEmail(User u) {
+		SimpleMailMessage mailMessage = new SimpleMailMessage();
+		mailMessage.setTo(u.getEmail());
+		mailMessage.setFrom("useradmin@ksug.org");
+		mailMessage.setSubject("Upgrade 안내");
+		mailMessage.setText("사용자님의 등급이 " + u.getLevel().name());
+		
+		mailSender.send(mailMessage);
 	}
 
 	private boolean changeUpgradeLevel (User user) {
@@ -67,3 +82,5 @@ public class UserServiceImple implements UserService{
 		}
 	}
 }
+
+
