@@ -19,15 +19,20 @@
 		<property name="dataSource" ref="dataSource" />
 	</bean>
 	
+	<bean id="mailSender" class="practice.spring.toby.chapter6.MockMailSender" />
+	
+	<!-- 데코레이터 패턴 -->
+	<!-- 타깃 -->
 	<bean id="userServiceImple" class="practice.spring.toby.chapter6.UserServiceImple">
 		<property name="userDao" ref="userDao" />
 		<property name="mailSender" ref="mailSender" />
 	</bean>
 	
+	<!-- 데코레이터 -->
 	<bean id="userService" class="practice.spring.toby.chapter6.UserServiceTx">
 		<property name="transactionManager" ref="transactionManager" />
 		<property name="userService" ref="userServiceImple" />
 	</bean>
 	
-	<bean id="mailSender" class="practice.spring.toby.chapter6.MockMailSender" />
+
 </beans>

@@ -14,7 +14,8 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
  * UserServiceTx는 사용자 관리라는 비즈니스 로직을 전혀 갖지 않고 고스란히 다른 userService 구현 오브젝트에 기능을 위임한다.
  * */ 
 public class UserServiceTx implements UserService {
-	UserService userService;
+	// userServiceImple의 데코레이터
+	UserService userService; 
 	PlatformTransactionManager transactionManager;
 	UserDao dao;
 	
@@ -22,7 +23,7 @@ public class UserServiceTx implements UserService {
 		this.transactionManager = transactionManager;
 	}
 	
-	public void setUserService (UserService userService) { // UserService를 구현한 다른 오브젝트를 DI 받는다.
+	public void setUserService (UserService userService) { // UserService를 구현한 다른 오브젝트를 DI 받는다. (프록시 패턴)
 		this.userService = userService;
 	}
 	
@@ -32,9 +33,14 @@ public class UserServiceTx implements UserService {
 	
 	@Override
 	public void upgradeLevels() {
+		// 부가기능 수행
 		TransactionStatus status = this.transactionManager.getTransaction(new DefaultTransactionDefinition());
 		try {
+			
+			// 위임
 			userService.upgradeLevels();
+			
+		// 부가기능 수행
 			transactionManager.commit(status);
 		} catch (RuntimeException e) {
 			this.transactionManager.rollback(status);
@@ -42,6 +48,7 @@ public class UserServiceTx implements UserService {
 		}
 	}
 
+	// 메서드 구현과 위임
 	@Override
 	public void add(User user) {
 		userService.add(user);
