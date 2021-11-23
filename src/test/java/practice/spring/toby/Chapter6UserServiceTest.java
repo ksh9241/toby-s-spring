@@ -3,10 +3,11 @@ package practice.spring.toby;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
-import static org.mockito.Matchers.*;
 
+import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
 
@@ -25,8 +26,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import practice.spring.toby.chapter6.Level;
 import practice.spring.toby.chapter6.MockMailSender;
 import practice.spring.toby.chapter6.MockUserDao;
+import practice.spring.toby.chapter6.TransactionHandler;
 import practice.spring.toby.chapter6.User;
 import practice.spring.toby.chapter6.UserDao;
+import practice.spring.toby.chapter6.UserService;
 import practice.spring.toby.chapter6.UserServiceImple;
 import practice.spring.toby.chapter6.UserServiceTx;
 
@@ -86,7 +89,35 @@ public class Chapter6UserServiceTest {
 		} catch (Exception e) {
 			
 		}
+		checkLevel(users.get(1), false);
+	}
 	
+	@Test
+	public void upgradeAllOrNothing_transactionHandler() throws Exception{
+		imple = new UserServiceImple(users.get(3).getId());
+		imple.setUserDao(userDao);
+		
+		mailSender = new MockMailSender();
+		imple.setMailSender(mailSender);
+		
+		TransactionHandler txHandler = new TransactionHandler();
+		txHandler.setTarget(imple);
+		txHandler.setTransactionManager(transactionManager);
+		txHandler.setPattern("upgradeLevels");
+		UserService txUserService = (UserService) Proxy.newProxyInstance(getClass().getClassLoader(),new Class[] {UserService.class} , txHandler);
+		
+		userDao.deleteAll();
+			
+		for (int i = 0; i < users.size(); i++) {
+			userDao.add(users.get(i));
+		}
+		
+		try {
+			service.upgradeLevels();
+			fail("TestUserServiceException expected");
+		} catch (Exception e) {
+			
+		}
 		checkLevel(users.get(1), false);
 	}
 	

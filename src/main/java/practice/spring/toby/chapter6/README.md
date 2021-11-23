@@ -139,3 +139,94 @@ BeanFactory는 어플리케이션이 실행한 후 객체가 호출 될 당시 �
 		assertThat((Character) charAtMethod.invoke(name, 0), is('S'));
 ```
 
+##### 다이나믹 프록시
+다이나믹 프록시는 팩토리에 의해 런타임 시 동적으로 만들어지는 오브젝트이다. 클라이언트는 다이나믹 프록시 오브젝트를 타깃 인터페이스를 통해 사용할 수 있다. 이 덕분에 프록시를 만들 때 인터페이스를 모두 구현해가면서 클래스를 정의하는 수고를 덜 수 있다. 다이나믹 프록시가 인터페이스 구현 클래스의 오브젝트는 만들어주지만, 프록시로서 필요한 부가기능 제공 코드는 직접 작성해야 한다. 부가기능은 프록시 오브젝트와 독립적으로 InvocationHandler를 구현한 오브젝트에 담는다. 다이나믹 프록시 오브젝트는 클라이언트의 모든 요청을 리플렉션 정보로 변환해서 InvocationHandler 구현 오브젝트의 invoke() 메서드로 넘긴다. 타깃 인터페이스의 모든 메서드의 요청이 하나의 메서드로 집중되기 때문에 중복되는 기능을 효과적으로 제공할 수 있다.
+
+```JAVA
+public class UppercaseHandler implements InvocationHandler {
+
+	Hello target;
+	
+	public UppercaseHandler (Hello target) {
+		this.target = target;
+	}
+	
+	@Override
+	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+		String ret = (String) method.invoke(target, args); // 타깃으로 위임. 인터페이스의 메서드 호출에 모두 적용된다.
+		return ret.toUpperCase();
+	}
+}
+```
+
+##### 다이나믹 프록시를 위한 팩토리 빈
+DI의 대상이 되는 다이나믹 프록시 오브젝트는 일반적인 스프링의 빈으로는 등록할 방법이 없다는 점이다. 스프링의 빈은 기본적으로 클래스 이름과 프로퍼티로 정의된다. 스프링은 지정된 클래스 이름을 가지고 리플렉션을 이용해서 해당 클래스의 오브젝트를 만든다. Class의 newInstance() 메서드는 해당 클래스의 파라미터가 없는 생성자를 호출하고, 그 결과 생성되는 오브젝트를 돌려주는 리플렉션  API다.
+ex ) Date now = (Date) Class.forName("java.util.Date").newInstance();
+
+스프링은 내부적으로 리플렉션 API를 이용해서 빈 정의에 나오는 클래스 이름을 가지고 빈 오브젝트를 생성한다. 문제는 다이나믹 프록시 오브젝트는 이런 식으로 프록시 오브젝트가 생성되지 않는다는 점이다. 다이나믹 프록시는 Proxy 클래스의 newProxyInstance()라는 스태틱 팩토리 메서드를 통해서만 만들 수 있다.
+
+##### 팩토리 빈
+스프링은 클래스 정보를 가지고 디폴트 생성자를 통해 오브젝트를 만드는 방법 외에도 빈을 만들 수 있는 여러 가지 방법을 제공한다. 대표적으로 팩토리빈을 이용한 빈 생성 방법을 들 수 있다. 팩토리 빈을 만드는 방법은 여러가지가 있는데 가장 간단한 방법은 FactoryBean 이라는 인터페이스를 구현하는 것이다.
+
+```JAVA
+
+public interface FactoryBean<T> {
+	T getObject() throws Exception;	// 빈 오브젝트를 생성해서 돌려준다.
+	Class<?> getObjectType();		// 생성되는 오브젝트의 타입을 알려준다.
+	boolean isSingleton();		// getObject()가 돌려주는 오브젝트가 항상 같은 싱글톤 오브젝트인지 알려준다.
+}
+
+// 생성자를 제공하지 않는 클래스
+public class Message {
+
+	String text;
+	
+	// 생성자가 private으로 선언되어 있어서 외부에서 생성자를 통한 오브젝트를 만들 수 없다.
+	private Message (String text) {
+		this.text = text;
+	}
+	public String getMessage() {
+		return this.text;
+	}
+	
+	// 생성자 메서드 대신 사용할 수 있는 스태틱 팩토리 메서드를 제공한다.
+	public static Message newMessage (String text) {
+		return new Message(text);
+	}
+}
+```
+
+사실 스프링은 private 생성자를 가진 클래스도 빈으로 등록해주면 리플렉션을 이용해 오브젝트를 만들어준다. 리플렉션은 private으로 선언된 접근 규약을 위반할 수 있는 강력한 기능이 있기 때문이다. 하지만 생성자를 private으로 만들었다는 것은 스태틱 메서드를 통해 오브젝트를 만들어져야 하는 중요한 이유가 있기 때문이므로 이를 무시하고 오브젝트를 강제로 생성하면 위험하다.
+
+##### 다이나믹 프록시를 만들어주는 팩토리 빈
+Proxy의 newProxyInstance() 메서드를 통해서만 생성이 가능한 다이나믹 프록시 오브젝트는 일반적인 방법으로는 스프링의 빈으로 등록할 수 없다. 대신 팩토리 빈을 사용하면 다이나믹 프록시 오브젝트를 스프링의 빈으로 만들어줄 수가 있다. 스프링 빈 설정에는 팩토리 빈과 타깃 클래스만 빈으로 등록한다. 팩토리 빈은 다이나믹 프록시가 위임할 타깃 오브젝트에 대한 레퍼런스를 프로퍼티를 통해 DI 받아둬야 한다. 그 외에도 다이나믹 프록시나 TransactionHandler를 만들 때 필요한 정보는 팩토리 빈의 프로퍼티로 설정해뒀다가 다이나믹 프록시를 만들면서 전달해줘야 한다. (1권 454p 이미지 참조)
+
+##### 트랜잭션 프록시 팩토리 빈 테스트
+TransactionHandler와 다이나믹 프록시 오브젝트를 직접 만들어서 테스트했을 때는 타깃 오브젝트를 바꾸기가 쉬웠는데 이제는 스프링 빈에서 생성되는 프록시 오브젝트에 대해 테스트를 해야 하기 때문에 간단하지 않다. 가장 문제는 타깃 오브젝트에 대한 레퍼런스는 TransactionHandler 오브젝트가 갖고 있는데, TxProxyFactoryBean 내부에서 만들어져 다이나믹 프록시 생성에 사용될 뿐 별도로 참조할 방법이 없다는 점이다. 방법은 빈으로 등록된 TxProxyFactoryBean을 직접 가져와서 프록시를 만들어 보면 된다.
+
+```JAVA
+@Test
+@DirtiesContext // 다이나믹 프록시 팩토리 빈을 직접 만들어 사용할 때는 없앴다가 다시 등장한 컨텍스트 무효화 어노테이션
+public void upgradeAllOrNothing() throws Exception {
+	MockMailSender mailSender = new MockMailSender();
+		
+	UserServiceImple testUserService = new UserServiceImple(users.get(3).getId());
+	testUserService.setUserDao(userDao);
+	testUserService.setMailSender(mailSender);
+		
+	TxProxyFactoryBean txProxyFactoryBean = context.getBean("&userService", TxProxyFactoryBean.class);
+	txProxyFactoryBean.setTarget(testUserService);
+	UserService txUserService = (UserService) txProxyFactoryBean.getObject(); // 변경된 타깃 설정을 이용해서 트랜잭션 다이나믹 프록시 오브젝트를 다시 생성한다.
+		
+	userDao.deleteAll();
+	for (User user : users) userDao.add(user);
+		
+	try {
+		txUserService.upgradeLevels();
+		fail("TestUserServiceException expected");
+	} catch (Exception e) {
+	}
+		
+	checkLevel(users.get(1), false);
+}
+```
