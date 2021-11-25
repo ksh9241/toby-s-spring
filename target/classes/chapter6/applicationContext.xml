@@ -28,6 +28,8 @@
 		<property name="mailSender" ref="mailSender" />
 	</bean>
 	
+	<bean class="org.springframework.mock.web.MockServletContext"/>
+
 	<!-- 데코레이터 -->
 	<!-- 
 	<bean id="userService" class="practice.spring.toby.chapter6.UserServiceTx">
@@ -41,14 +43,41 @@
 		<property name="text" value="Factory Bean" />
 	</bean>
 	
-	<!-- UserSErvice에 대한 트랜잭션 프록시 팩토리 빈 -->
+	<!-- UserService에 대한 트랜잭션 프록시 팩토리 빈 -->
+	<!-- 
 	<bean id="userService" class="practice.spring.toby.chapter6.TxProxyFactoryBean">
 		<property name="target" ref="userServiceImple" />
 		<property name="transactionManager" ref="transactionManager" />
 		<property name="pattern" value="upgradeLevels" />
 		<property name="serviceInterface" value="practice.spring.toby.chapter6.UserService" />
 	</bean>
+	 -->
 	<!-- serviceInterface는 단순 타입이 아니라 클래스 타입이다. 클래스 타입은 value를 이용해 클래스 또는 인터페이스의 이름을 넣어주면 된다. -->
 	
-
+	<!-- 스프링 프록시팩토리빈 트랜잭션 -->
+	<bean id="transactionAdvice" class="practice.spring.toby.chapter6.TransactionAdvice">
+		<property name="transactionManager" ref="transactionManager" />
+	</bean>
+	
+	<!-- 포인트 컷 빈 설정 -->
+	<bean id="transactionPointcut" class="org.springframework.aop.support.NameMatchMethodPointcut">
+		<property name="mappedName" value="upgrade*" />
+	</bean>
+	
+	<!-- 어드바이저 빈 생성 -->
+	<bean id="transactionAdvisor" class="org.springframework.aop.support.DefaultPointcutAdvisor">
+		<property name="advice" ref="transactionAdvice" />
+		<property name="pointcut" ref="transactionPointcut" />
+	</bean>
+	
+	<!-- ProxyFactoryBean 설정 -->
+	<bean id="userService" class="org.springframework.aop.framework.ProxyFactoryBean">
+		<property name="target" ref="userServiceImple" />
+		<property name="interceptorNames"> <!-- 어드바이스와 어드바이저를 동시에 설정해줄 수 있는 프로퍼티. 어드바이스나 어드바이저의 빈 아디리를 값으로 넣어주면된다. 기존의 ref 애트리뷰트를 사용하는 DI와 방식이 다름에 주의해야 한다.-->
+			<list>
+				<value>transactionAdvisor</value>
+			</list>
+		</property>
+	</bean>
+	
 </beans>
