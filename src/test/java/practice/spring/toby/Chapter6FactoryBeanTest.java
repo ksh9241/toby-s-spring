@@ -30,7 +30,6 @@ import practice.spring.toby.chapter6.Level;
 import practice.spring.toby.chapter6.Message;
 import practice.spring.toby.chapter6.MessageFactoryBean;
 import practice.spring.toby.chapter6.MockMailSender;
-import practice.spring.toby.chapter6.TxProxyFactoryBean;
 import practice.spring.toby.chapter6.UppercaseHandler;
 import practice.spring.toby.chapter6.User;
 import practice.spring.toby.chapter6.UserDao;
@@ -38,7 +37,7 @@ import practice.spring.toby.chapter6.UserService;
 import practice.spring.toby.chapter6.UserServiceImple;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration("/chapter6/applicationContext.xml")
+@ContextConfiguration(locations = "/chapter6/applicationContext.xml")
 public class Chapter6FactoryBeanTest {
 
 	@Autowired
