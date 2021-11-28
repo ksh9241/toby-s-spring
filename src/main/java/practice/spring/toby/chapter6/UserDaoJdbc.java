@@ -60,7 +60,7 @@ public class UserDaoJdbc implements UserDao{
 	}
 	
 	public int getCount () {
-		return jdbcTemplate.queryForInt("SELECT COUNT(*) FROM users");
+		return jdbcTemplate.queryForList("SELECT COUNT(*) FROM users").size();
 	}
 
 	public void update(User user1) {

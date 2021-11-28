@@ -93,7 +93,7 @@ public class UserDaoJdbc implements UserDao{
 	
 	public int getCount () {
 		try {
-			return template.queryForInt("SELECT COUNT(*) FROM users");
+			return template.queryForList("SELECT COUNT(*) FROM users").size();
 		} catch (Exception e) {
 			throw e;
 		}

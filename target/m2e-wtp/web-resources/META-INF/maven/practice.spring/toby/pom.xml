@@ -9,7 +9,7 @@
 	<version>1.0.0-BUILD-SNAPSHOT</version>
 	<properties>
 		<java-version>1.8</java-version>
-		<org.springframework-version>3.1.1.RELEASE</org.springframework-version>
+		<org.springframework-version>4.3.8.RELEASE</org.springframework-version>
 		<org.aspectj-version>1.6.10</org.aspectj-version>
 		<org.slf4j-version>1.6.6</org.slf4j-version>
 	</properties>
@@ -79,6 +79,19 @@
 			<version>${org.aspectj-version}</version>
 		</dependency>	
 		
+		<!-- AspectJ Weaver -->
+		<dependency>
+		  <groupId>org.aspectj</groupId>
+		  <artifactId>aspectjweaver</artifactId>
+		  <version>${org.aspectj-version}</version>
+		</dependency>
+		<!-- AspectJ Tools -->
+		<dependency>
+		  <groupId>org.aspectj</groupId>
+		  <artifactId>aspectjtools</artifactId>
+		  <version>${org.aspectj-version}</version>
+		</dependency>		
+		
 		<!-- Logging -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -131,11 +144,12 @@
 				
 		<!-- Servlet -->
 		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>servlet-api</artifactId>
-			<version>2.5</version>
-			<scope>provided</scope>
+		    <groupId>javax.servlet</groupId>
+		    <artifactId>javax.servlet-api</artifactId>
+		    <version>3.1.0</version>
+		    <scope>provided</scope>
 		</dependency>
+
 		<dependency>
 			<groupId>javax.servlet.jsp</groupId>
 			<artifactId>jsp-api</artifactId>
@@ -181,8 +195,6 @@
 		    <version>2.7.22</version>
 		    <scope>test</scope>
 		</dependency>
-		
-				
 		
 	</dependencies>
     <build>

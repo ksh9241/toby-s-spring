@@ -7,6 +7,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
 
+import java.lang.annotation.Target;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +18,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.aop.aspectj.AspectJExpressionPointcut;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.test.context.ContextConfiguration;
@@ -26,6 +30,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import practice.spring.toby.chapter6.Level;
 import practice.spring.toby.chapter6.MockMailSender;
 import practice.spring.toby.chapter6.MockUserDao;
+import practice.spring.toby.chapter6.TestUserServiceException;
 import practice.spring.toby.chapter6.TransactionHandler;
 import practice.spring.toby.chapter6.User;
 import practice.spring.toby.chapter6.UserDao;
@@ -34,6 +39,7 @@ import practice.spring.toby.chapter6.UserServiceImple;
 import practice.spring.toby.chapter6.UserServiceTx;
 
 @RunWith(SpringJUnit4ClassRunner.class)
+//@WebAppConfiguration
 @ContextConfiguration("/chapter6/applicationContext.xml")
 public class Chapter6UserServiceTest {
 
@@ -44,12 +50,14 @@ public class Chapter6UserServiceTest {
 	PlatformTransactionManager transactionManager;
 	
 	@Autowired
-	UserServiceTx service;
-	
-	@Autowired
-	UserServiceImple imple;
+	UserService testUserService;
 	
 	MockMailSender mailSender;
+	
+	// 사용안함 (DefaultAdvisorAutoProxy 중)
+	UserServiceTx service;
+	UserServiceImple imple;
+	
 	
 	List<User> users;
 	
@@ -63,36 +71,46 @@ public class Chapter6UserServiceTest {
 				new User("5","5","5",Level.GOLD, 100, 100, "NO")	
 			);
 		
-		service = new UserServiceTx();
+		//service = new UserServiceTx();
 	}
 	
 	@Test
 	public void upgradeAllOrNothing() throws Exception{
-		imple = new UserServiceImple(users.get(3).getId());
-		imple.setUserDao(userDao);
-		
-		mailSender = new MockMailSender();
-		imple.setMailSender(mailSender);
-		
-		service.setTransactionManager(transactionManager);
-		service.setUserService(imple);
-		
 		userDao.deleteAll();
-			
-		for (int i = 0; i < users.size(); i++) {
-			userDao.add(users.get(i));
-		}
+		users.forEach(user -> userDao.add(user));
 		
 		try {
-			service.upgradeLevels();
+			testUserService.upgradeLevels();
 			fail("TestUserServiceException expected");
-		} catch (Exception e) {
-			
+		} catch (TestUserServiceException e) {
 		}
+		
 		checkLevel(users.get(1), false);
 	}
 	
 	@Test
+	public void methodSignaturePointcut() throws SecurityException, NoSuchMethodException, ClassNotFoundException {
+		AspectJExpressionPointcut pointcut  = new AspectJExpressionPointcut();
+		
+		Method[] methods = Class.forName("practice.spring.toby.chapter6.Target").getDeclaredMethods();
+		for (Method m : methods) {
+			System.out.println(m.getName() +" "+ m.getReturnType());
+		}
+		
+		// Target Class minus() 메서드의 시그니처
+		pointcut.setExpression("execution(* minus(..))");
+		
+		// Target.minus()
+		assertThat(pointcut.getClassFilter().matches(Target.class) && pointcut.getMethodMatcher().matches(Target.class.getMethod("minus", int.class, int.class), null), is(true));
+		
+		// Target.plus()
+		assertThat(pointcut.getClassFilter().matches(Target.class) && pointcut.getMethodMatcher().matches(Target.class.getMethod("plus", int.class, int.class), null), is(false));
+		
+		// Bean.method()
+		assertThat(pointcut.getClassFilter().matches(Bean.class) && pointcut.getMethodMatcher().matches(Target.class.getMethod("method"), null), is(false));
+	}
+	
+	//@Test
 	public void upgradeAllOrNothing_transactionHandler() throws Exception{
 		imple = new UserServiceImple(users.get(3).getId());
 		imple.setUserDao(userDao);
@@ -121,7 +139,7 @@ public class Chapter6UserServiceTest {
 		checkLevel(users.get(1), false);
 	}
 	
-	@Test
+	//@Test
 	public void upgradeLevels () throws Exception {
 		MockMailSender mailSender = new MockMailSender();
 		imple = new UserServiceImple();
@@ -145,7 +163,7 @@ public class Chapter6UserServiceTest {
 		assertThat(request.get(1), is(users.get(3).getEmail()));
 	}
 	
-	@Test
+	//@Test
 	public void upgradeLevels_Mockito () throws Exception {
 		imple = new UserServiceImple();
 		UserDao mockUserDao = Mockito.mock(UserDao.class);

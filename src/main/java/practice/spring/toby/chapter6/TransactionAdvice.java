@@ -3,6 +3,7 @@ package practice.spring.toby.chapter6;
 import java.lang.reflect.Method;
 
 import org.aopalliance.intercept.MethodInvocation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
@@ -12,6 +13,7 @@ import net.sf.cglib.proxy.MethodProxy;
 
 public class TransactionAdvice implements MethodInterceptor {
 	
+	@Autowired
 	PlatformTransactionManager transactionManager;
 	
 	public void setTransactionManager (PlatformTransactionManager transactionManager) {

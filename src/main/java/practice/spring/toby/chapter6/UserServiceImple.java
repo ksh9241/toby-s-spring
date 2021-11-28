@@ -54,9 +54,8 @@ public class UserServiceImple implements UserService{
 		}
 	}
 	
-	private void upgradeLevel(User u) {
+	protected void upgradeLevel(User u) {
 		if (u.getId().equals(this.id)) throw new TestUserServiceException();
-		
 		u.upgradeLevel();
 		userDao.update(u);
 		sendUpgradeEmail(u);
