@@ -46,8 +46,8 @@ public class Chapter6UserServiceTest {
 	@Autowired
 	UserDao userDao;
 	
-	@Autowired
-	PlatformTransactionManager transactionManager;
+	//@Autowired
+	//PlatformTransactionManager transactionManager;
 	
 	@Autowired
 	UserService testUserService;
@@ -120,7 +120,7 @@ public class Chapter6UserServiceTest {
 		
 		TransactionHandler txHandler = new TransactionHandler();
 		txHandler.setTarget(imple);
-		txHandler.setTransactionManager(transactionManager);
+		//txHandler.setTransactionManager(transactionManager);
 		txHandler.setPattern("upgradeLevels");
 		UserService txUserService = (UserService) Proxy.newProxyInstance(getClass().getClassLoader(),new Class[] {UserService.class} , txHandler);
 		
