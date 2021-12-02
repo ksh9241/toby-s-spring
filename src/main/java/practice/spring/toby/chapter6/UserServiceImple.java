@@ -44,7 +44,6 @@ public class UserServiceImple implements UserService{
 		userDao.add(user);
 	}
 	
-	@Override
 	public void upgradeLevels() {
 		List<User> users = userDao.getAll();
 		for (User user : users) {
@@ -79,6 +78,27 @@ public class UserServiceImple implements UserService{
 			case GOLD : return false;
 			default : throw new IllegalArgumentException("Unknown Level : " + currentLevel);
 		}
+	}
+
+	@Override
+	public User get(String id) {
+		return userDao.get(id);
+	}
+
+	@Override
+	public List<User> getAll() {
+		return userDao.getAll();
+	}
+
+	@Override
+	public void deleteAll() {
+		userDao.deleteAll();
+	}
+
+	@Override
+	public void update(User user) {
+		System.out.println("Service 호출됨!");
+		userDao.update(user);
 	}
 }
 

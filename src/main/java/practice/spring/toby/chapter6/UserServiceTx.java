@@ -31,7 +31,6 @@ public class UserServiceTx implements UserService {
 		this.dao = dao;
 	}
 	
-	@Override
 	public void upgradeLevels() {
 		// 부가기능 수행
 		TransactionStatus status = this.transactionManager.getTransaction(new DefaultTransactionDefinition());
@@ -52,5 +51,29 @@ public class UserServiceTx implements UserService {
 	@Override
 	public void add(User user) {
 		userService.add(user);
+	}
+
+	@Override
+	public User get(String id) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<User> getAll() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void deleteAll() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void update(User user) {
+		// TODO Auto-generated method stub
+		
 	}
 }

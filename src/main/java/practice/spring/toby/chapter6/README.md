@@ -540,3 +540,76 @@ TransactionInterceptor 5가지 속성
 3. PROPAGATION_REQUIRES_NEW : 항상 새로운 트랜잭션을 시작한다.
 4. PROPAGATION_NOT_SUPPORTED : 트랜잭션 없이 동작한다.
 5. rollbackOn() : 어떤 예외가 발생하면 롤백을 할 것인가를 결정하는 메서드다. TransactionAttribute를 이용하면 트랜잭션 부가기능의 동작 방식을 모두 제어할 수 있다.
+
+TransactionAdvice는 RuntimeException이 발생하는 경우에만 트랜잭션을 롤백시킨다. 체크 예외를 던지는 타깃에 사용한다면 문제가 될 수 있다. 그렇다고 모든 예외를 롤백시키는 것은 안된다. 비즈니스 로직상의 예외 경우를 나타내기 위해 타깃 오브젝트가 체크 예외를 던지는 경우에는 DB 트랜잭션을 커밋시켜야 하기 때문이다.
+
+스프링이 제공하는 TransactionInterceptor에는 기본적으로 두 가지 종류의 예외 처리 방식이 있다. 런타임 예외가 발생하면 트랜잭션은 롤백된다. 반면 타깃 메서드가 런타임 예외가 아닌 체크예외를 던질 시 이것을 예외상황으로 해석하지 않고 트랜잭션 커밋을 진행한다. 그런데 TransactionInterceptor의 예외처리 기본원칙을 따르지 않는 경우가 있다. TransactionAttribut는 rollbackOn() 이라는 속성을 둬서 기본 원칙과 다른 예외처리가 가능하게 해준다. TransactionInterceptor는 이런 TransactionAttribute를 Properties라는 일종의 맵 타입 오브젝트로 전달받는다. 컬렉션을 사용하는 이유는 메서드 패턴에 따라서 각기 다른 트랜잭션 속성을 부여할 수 있게 하기 위해서다.
+
+##### 메서드 이름 패턴을 이용한 트랜잭션 속성 지정
+- PROPAGATION_NAME : 트랜잭션 전파 방식, 필수항목이다. PROPAGATION_로 시작한다.
+- ISOLATION_NAME : 격리수준, ISOLATION_로 시작한다. 생략가능하다. (Default : 격리수준)
+- readOnly : 읽기 전용 항목. 생략 가능하다. (Default : null)
+- timeout_NNNN : 제한시간, timeout_로 시작하고 초 단위 시간을 뒤에 붙인다. 생략가능.
+- -Exception1 : 체크예외 중에서 롤백 대상으로 추가할 것을 넣는다. (복수가능)
+- +Exception2 : 런타임 예외지만 롤백시키지 않을 예외들을 넣는다. (복수가능)
+이 중에서 트랜잭션 전파 항목만 필수고 나머지는 다 생략 가능하다. 생략하면 모두 DefaultTransactionDefinition에 설정된 디폴트 속성이 부여된다.
+
+```JAVA
+트랜잭션 속성 정의 예
+<bean id="transactionAdvice" class="org.springframework.transaction.interceptor.TransactionInterceptor">
+	<property name="transactionManager" ref="transactionManager"/>
+	<property name="transactionAttributes">
+		<props>
+			<prop key="get*">PROPAGATION_REQUIRED,readOnly,timeout_30</prop>
+			<prop key="upgrade*">PROPAGATION_REQUIRES_NEW,ISOLATION_SERIALIZABLE</prop>
+			<prop key="*">PROPAGATION_REQUIRED</prop>
+		</props>
+	</property>
+</bean>
+```
+
+##### tx네임스페이스를 이용한 설정방법
+TransactionInterceptor 타입과 TransactionAttribute타입의 속성 정보도 tx스키마의 전용 태그를 이용해 정의할 수 있다.
+
+```JAVA
+ <beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema.beans
+        http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx-2.5.xsd">
+
+    // 이 태그에 의해 TransactionInterceptor 빈이 등록된다.
+    <tx:advice id="transactionAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="get*" propagation="REQUIRED" read-only="true" timeout="30" />
+	<tx:method name="upgrade*" propagation="REQUIRES_NEW" isolation="SERIALIZABLE" />
+	<tx:method name="*" propagation="REQUIRED" />
+        </tx:attributes>
+    </tx:advice>
+```
+
+bean 태그로 등록하는 경우에 비해 자동완성 기능과 오타 문제도 잡아주는 등 장점이 많기 때문에 tx스키마의 태그를 사용해 어드바이스를 등록하도록 권장한다.
+
+##### 포인트컷과 트랜잭션 속성의 적용 전략
+aop와 tx 스키마의 전용 태그를 사용한다면 애플리케이션의 어드바이저, 어드바이스, 포인트컷 기본 설정 방법은 바뀌지 않을 것이다. expression 애트리뷰트에 넣는 포인트컷 표현식과 <tx:attributes>로 정의하는 트랜잭션 속성만 결정하면 된다.
+
+##### 트랜잭션 포인트컷 표현식은 타입 패턴이나 빈 이름을 이용한다.
+일반적으로 트랜잭션을 적용할 타깃 클래스의 메서드는 모두 트랜잭션 적용 후보가 되는 것이 바람직하다. 앞선 예제에선 upgrade*의 메서드만 트랜잭션 처리했는데 비즈니스 로직을 담고있는 클래스라면 메서드 단위까지 세밀하게 포인트컷을 정의해줄 필요는 없다. 그리고 쓰기가 없고 읽기만 있는 타깃 클래스라도 트랜잭션을 적용하는 것이 성능향상에 도움이 된다. 트랜잭션에서 읽기전용으로 처리하게 된다면 트랜잭션을 처리하지 않은 클래스의 읽기보다 성능향상이 있다. 그리고 가능하면 클래스 타입으로 포인트컷 표현식을 처리하는 것보다 인터페이스 타입위주로 처리하는 것이 좋다. 인터페이스는 클래스에 비해 변경 빈도가 적고 일정한 패턴을 유지하기 쉽기 때문이다.
+
+메서드의 시그니처를 이용한 execution() 방식의 포인트컷 표현식 대신 스프링의 빈 이름을 이용한 bean() 표현식을 사용하는 방법도 있다. bean() 표현식은 빈 이름을 기준으로 선정하기 때문에 클래스나 인터페이스 이름에 일정한 규칙을 만들기가 어려운 경우에 유용하다.
+
+##### 프록시 방식 AOP는 같은 타깃 오브젝트 내의 메서드를 호출할 때는 적용되지 않는다.
+이건 주의사항이다. 프록시 방식의 AOP에서는 프록시를 통한 부가기능의 적용 클라이언트로부터 호출이 일어날 때만 가능하다. 여기서 클라이언트는 인터페이스를 통해 타깃 오브젝트를 사용하는 다른 모든 오브젝트를 말한다.
+
+클라이언트 --- request -> 트랜잭션 프록시 --- request -> 타깃
+
+프록시에서 트랜잭션 처리를 진행하기 때문에 타깃에서 타깃 오브젝트 내에 메서드를 호출해도 트랜잭션이 적용되지 않는 것이다. 이런 상황의 경우 프록시 AOP를 통해 부여해준 부가기능이 적용되지 않는다는 점을 주의해야 한다. 이 문제를 해결 할 두 가지 방법이 있다.
+1. 스프링 API를 이용해 프록시 오브젝트에 대한 레퍼런스를 가져온 뒤에 같은 오브젝트의 메서드 호출도 프록시를 이용하도록 강제하는 방법이다. (기껏 핵심로직과 부가기능을 나눴는데 다시 호출하는 것은 비추천)
+2. AspectJ와 같은 타깃 바이트코드로 직접 조작하는 방식의 AOP를 적용하는 것이다.
+

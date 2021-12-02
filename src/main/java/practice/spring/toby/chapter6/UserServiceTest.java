@@ -1,5 +1,7 @@
 package practice.spring.toby.chapter6;
 
+import java.util.List;
+
 public class UserServiceTest {
 
 	static class TestUserServiceImple extends UserServiceImple {
@@ -8,6 +10,13 @@ public class UserServiceTest {
 		protected void upgradeLevel (User user) {
 			if (user.getId().equals(this.id)) throw new TestUserServiceException();
 			super.upgradeLevel(user);
+		}
+		
+		public List<User> getAll() {
+			for (User user : super.getAll()) {
+				super.update(user);
+			}
+			return null;
 		}
 	}
 }

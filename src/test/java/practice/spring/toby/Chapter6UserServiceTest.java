@@ -75,6 +75,11 @@ public class Chapter6UserServiceTest {
 	}
 	
 	@Test
+	public void readOnlyTransactionAttribute() {
+		testUserService.getAll();
+	}
+	
+	@Test
 	public void upgradeAllOrNothing() throws Exception{
 		userDao.deleteAll();
 		users.forEach(user -> userDao.add(user));
@@ -88,7 +93,7 @@ public class Chapter6UserServiceTest {
 		checkLevel(users.get(1), false);
 	}
 	
-	@Test
+	//@Test
 	public void methodSignaturePointcut() throws SecurityException, NoSuchMethodException, ClassNotFoundException {
 		AspectJExpressionPointcut pointcut  = new AspectJExpressionPointcut();
 		
