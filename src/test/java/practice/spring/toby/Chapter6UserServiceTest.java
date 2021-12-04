@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_LOGCOUNT_FOR_SILVER;
 import static practice.spring.toby.chapter5.UserServiceImple.MIN_RECCOMEND_FOR_GOLD;
 
-import java.lang.annotation.Target;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
@@ -23,13 +22,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import practice.spring.toby.chapter6.Level;
 import practice.spring.toby.chapter6.MockMailSender;
 import practice.spring.toby.chapter6.MockUserDao;
+import practice.spring.toby.chapter6.Target;
 import practice.spring.toby.chapter6.TestUserServiceException;
 import practice.spring.toby.chapter6.TransactionHandler;
 import practice.spring.toby.chapter6.User;
@@ -46,8 +50,8 @@ public class Chapter6UserServiceTest {
 	@Autowired
 	UserDao userDao;
 	
-	//@Autowired
-	//PlatformTransactionManager transactionManager;
+	@Autowired
+	PlatformTransactionManager transactionManager;
 	
 	@Autowired
 	UserService testUserService;
@@ -74,12 +78,35 @@ public class Chapter6UserServiceTest {
 		//service = new UserServiceTx();
 	}
 	
+	//@Test
+	public void transactionSync() {
+		DefaultTransactionDefinition txDefinition = new DefaultTransactionDefinition(); // 트랜잭션 정의는 기본 값을 사용한다.
+		TransactionStatus txStatus = transactionManager.getTransaction(txDefinition);	// 트랜잭션 매니저에게 트랜잭션을 요청한다.
+		
+		try {
+			testUserService.add(users.get(0));
+			testUserService.add(users.get(1));
+			assertThat(userDao.getCount(), is(2));
+		}finally {
+			transactionManager.rollback(txStatus);
+		}
+	}
+	
+	@Test
+	@Transactional
+	@Rollback(false)
+	public void transactionSync_Annotation() {
+		testUserService.deleteAll();
+		testUserService.add(users.get(0));
+		testUserService.add(users.get(1));
+	}
+	
 	@Test
 	public void readOnlyTransactionAttribute() {
 		testUserService.getAll();
 	}
 	
-	@Test
+	//@Test
 	public void upgradeAllOrNothing() throws Exception{
 		userDao.deleteAll();
 		users.forEach(user -> userDao.add(user));
@@ -93,7 +120,7 @@ public class Chapter6UserServiceTest {
 		checkLevel(users.get(1), false);
 	}
 	
-	//@Test
+	@Test
 	public void methodSignaturePointcut() throws SecurityException, NoSuchMethodException, ClassNotFoundException {
 		AspectJExpressionPointcut pointcut  = new AspectJExpressionPointcut();
 		

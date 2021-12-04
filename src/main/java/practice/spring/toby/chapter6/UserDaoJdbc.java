@@ -60,11 +60,10 @@ public class UserDaoJdbc implements UserDao{
 	}
 	
 	public int getCount () {
-		return jdbcTemplate.queryForList("SELECT COUNT(*) FROM users").size();
+		return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
 	}
 
 	public void update(User user1) {
-		System.out.println("DAO 호출됨!");
 		try {
 			String sql = "UPDATE users SET name = ?, password = ?, login = ?, recommend = ?, user_level = ? WHERE id = ?";
 			jdbcTemplate.update(sql, user1.getName(), user1.getPassword(), user1.getLogin(), user1.getRecommend(), user1.getLevel().intValue(), user1.getId());	

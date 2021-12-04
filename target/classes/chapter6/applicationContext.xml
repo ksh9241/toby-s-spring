@@ -89,4 +89,7 @@
 	</bean>
  -->	
 	<!-- DefaultAdvisorAutoProxyCreator 등록 -->
+	
+	<!-- 트랜잭션 어노테이션 설정 -->
+	<tx:annotation-driven/>
 </beans>

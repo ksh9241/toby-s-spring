@@ -97,7 +97,6 @@ public class UserServiceImple implements UserService{
 
 	@Override
 	public void update(User user) {
-		System.out.println("Service 호출됨!");
 		userDao.update(user);
 	}
 }
