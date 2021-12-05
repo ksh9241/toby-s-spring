@@ -11,6 +11,7 @@
 		<config>src/main/resources/chapter2/junit.xml</config>
 		<config>src/main/resources/chapter5/applicationContext.xml</config>
 		<config>src/main/resources/chapter6/applicationContext.xml</config>
+		<config>src/main/resources/chapter7/applicationContext.xml</config>
 	</configs>
 	<autoconfigs>
 		<config>src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml</config>

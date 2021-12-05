@@ -675,3 +675,87 @@ public @interface Transactional { // 트랜잭션 속성의 모든 항목을 엘
 
 AOP를 이용해 코드 외부에서 트랜잭션의 기능을 부여해주고 속성을 지정할 수 있게 하는 방법을 '선언적 트랜잭션' 이라고 한다. 반대로 TransactionTemplate이나 개별 데이터 기술의 트랜잭션 API를 사용해 직접 코드 안에서 사용하는 방법은 '프로그램에 의한 트랜잭션' 이라고 한다. 스프링은 위 두가지 방법 모두 지원하고 있지만 특별한 경우가 아니라면 선언적 방식의 트랜잭션을 사용하는 것이 바람직하다.
 
+##### 트랜잭션 매니저와 트랜잭션 동기화
+트랜잭션 추상화 기술의 핵심은 트랜잭션 매니저와 트랜잭션 동기화다. 트랜잭션 동기화 기술은 트랜잭션 전파를 위해서도 중요한 역할을 한다. 진행중인 트랜잭션이 있는지 확인하고 트랜잭션 전파 속성에 따라서 이에 참여할 수 있도록 만들어주는 것이 트랜잭션 동기화 기술 덕분이다.
+
+##### 트랜잭션 매니저를 이용한 테스트용 트랜잭션 제어
+트랜잭션의 전파는 트랜잭션 매니저를 통해 트랜잭션 동기화 방식이 적용된다. 기존에는 3개의 트랜잭션이 생성되었지만 트랜잭션 매니저를 이용하여 트랜잭션을 생성하여 REQUIRED의 testUserService의 메서드들이 트랜잭션에 참여하도록 수정하였다.
+
+```JAVA
+@Test
+public void transactionSync() {
+	DefaultTransactionDefinition txDefinition = new DefaultTransactionDefinition(); // 트랜잭션 정의는 기본 값을 사용한다.
+	TransactionStatus txStatus = transactionManager.getTransaction(txDefinition);	// 트랜잭션 매니저에게 트랜잭션을 요청한다.
+	
+	testUserService.deleteAll();
+	
+	testUserService.add(users.get(0));
+	testUserService.add(users.get(1));
+	
+	transactionManager.commit(txStatus); // 앞에서 시작한 트랜잭션을 커밋한다.
+}
+```
+
+##### 롤백 테스트
+```JAVA
+@Test
+public void transactionSync() {
+	DefaultTransactionDefinition txDefinition = new DefaultTransactionDefinition(); // 트랜잭션 정의는 기본 값을 사용한다.
+	TransactionStatus txStatus = transactionManager.getTransaction(txDefinition);	// 트랜잭션 매니저에게 트랜잭션을 요청한다.
+	
+	try {
+		testUserService.add(users.get(0));
+		testUserService.add(users.get(1));
+		assertThat(userDao.getCount(), is(2));
+	}finally {
+		transactionManager.rollback(txStatus);
+	}
+}
+```
+
+트랜잭션 전파속성으로 트랜잭션을 하나 만들어두고 그 이후 테스트클래스에서 DB관련 테스트를 모두 진행 후 TransactionManager를 롤백하게 되면 DB에 영향을 주지 않고 테스트를 진행할 수 있는 장점이 있다.
+
+##### 테스트를 위한 트랜잭션 어노테이션
+- @Transactional : 테스트 클래스 또는 메서드에 @Transactional 어노테이션을 부여해주면 마치 타깃 클래스나 인터페이스에 적용된 것처럼 테스트 메서드에 트랜잭션 경계가 자동으로 설정된다. 이를 이용하면 테스트 내에서 진행하는 모든 트랜잭션 관련 작업을 하나로 묶어줄 수 있다. 트랜잭션 매니저와 번거로운 코드를 사용하는 대신 간단한 어노테이션만으로 트랜잭션이 적용된 테스트를 손쉽게 만들 수 있는 것이다.
+테스트 메서드나 클래스에 사용되는 @Transaction은 애플리케이션의 클래스에 적용할 때와 디폴트 속성은 동일하다. 하지만 중요한 차이점이 있는데, 테스트용 트랜잭션은 테스트가 끝나면 자동 롤백된다는 것이다.
+
+- @Rollback : 기본적으로 @Transactional은 테스트클래스에서 자동으로 롤백을 시켜준다. 그럼 테스트에서 진행된 DB 작업을 커밋하고 싶을 때는 @Rollback 어노테이션을 이용하면 된다. @Transactional은 기본적으로 테스트에서 사용할 용도로 만든 게 아니기 때문에 롤백 테스트에 관한 설정을 담을 수 없다. 따라서 롤백 기능을 제어하려면 별도의 어노테이션을 사용해야 한다. @Rollback의 기본값은 true다. 따라서 트랜잭션은 적용되지만 롤백을 원하지 않는 경우 @Rollback(false)로 처리해줘야 한다.
+
+```JAVA
+@Test
+@Transactional
+@Rollback(false)
+public void transactionSync_Annotation() {
+	testUserService.deleteAll();
+	testUserService.add(users.get(0));
+	testUserService.add(users.get(1));
+}
+```
+
+- @TransactionConfiguration : @Transactional 은 클래스에 설정이 가능하지만 @Rollback은 메서드 단위에서만 사용할 수 있다. 테스트 클래스의 모든 DB 작업을 커밋하고 싶을 때 @TransactionConfiguration 을 사용한다. 이 어노테이션을 사용한 뒤 커밋을 하고싶지 않은 메서드는 @Rollback 어노테이션을 추가해주면 된다.
+
+```JAVA
+@TransactionConfiguration(defaultRollback = false)
+```
+
+##### Propagation.NEVER
+테스트 내에 트랜잭션을 적용하고 싶지 않을 때는 @Transactional(propagation = Propagation.NEVER) 어노테이션을 메서드에 추가해주면 트랜잭션을 생성하지 않고, 영향도 받지 않는다.
+
+##### 효과적인 DB 테스트
+일반적으로 의존, 협력 오브젝트를 사용하지 않고 고립된 상태에서 테스트를 진행하는 단위 테스트와, DB 같은 외부 리소스나 여러 계층의 클래스가 참여하는 통합 테스트는 아예 클래스를 구분해서 따로 만드는 게 좋다. DB가 사용되는 통합 테스트를 별도의 클래스로 만들어둔다면 기본적으로 클래스 레벨에 @Transactional을 부여해준다. DB가 사용되는 통합 테스트는 가능하면 롤백 테스트로 만드는 게 좋다. 각 테스트는 자신이 필요한 테스트 데이터를 보충해서 테스트를 진행하게 만든다. 테스트가 기본적으로 롤백 테스트로 되어 있다면 테스트 사이에 서로 영향을 주지 않으므로 독립적이고 자동화된 테스트로 만들기가 매우 편하다.
+
+# 정리
+6장에서는 트랜잭션 경계설정 기능을 성격이 다른 비즈니스 로직 클래스에서 분리하고 유연하게 적용할 수 있는 방법을 찾아보면서 애플리케이션에 산재해서 나타나는 부가기능을 모듈화할 수 있는 AOP 기술을 알아봤다.
+
+- 트랜잭션 경계설정 코드를 분리해서 별도의 클래스로 만들고 비즈니스 로직 클래스와 동일한 인터페이스를 구현하면 DI의 확장 기능을 이용해 클라이언트의 변경 없이도 깔끔하게 분리된 트랜잭션 부가기능을 만들 수 있다. ( chapter6.UserServiceTx 참조 )
+- 트랜잭션처럼 환경과 외부 리소스에 영향을 받는 코드를 분리하면 비즈니스 로직에만 충실한 테스트를 만들 수 있다.
+- 목 오브젝트를 활용하면 의존관계 속에 있는 오브젝트도 손쉽게 고립된 테스트로 만들 수 있다.
+- DI를 이용한 트랜잭션의 분리는 데코레이터 패턴과 프록시 패턴으로 이해될 수 있다.
+- 번거로운 프록시 클래스 작성은 JDK의 다이나믹 프록시를 사용하면 간단하게 만들 수 있다.
+- 다이나믹 프록시는 스태틱 팩토리 메서드를 사용하기 때문에 빈으로 등록하기 번거롭다. 따라서 팩토리 빈으로 만들어야 한다. 스프링은 자동 프록시 생성 기술에 대한 추상화 서비스를 제공하는 프록시 팩토리 빈을 제공한다.
+- 프록시 팩토리 빈의 설정이 반복되는 문제를 해결하기 위해 자동 프록시 생성기와 포인트컷을 활용할 수 있다. 
+- 포인트컷은 AspectJ 포인트컷 표현식을 사용해서 작성하면 편하다.
+- AOP는 OOP만으로는 모듈화가 힘든 부가기능을 효과적으로 모듈화하도록 도와주는 기술이다.
+- 스프링은 자주 사용되는 AOP 설정과 트랜잭션 속성을 지정하는 데 사용할 수 있는 전용 태그를 제공한다. (aop, tx)
+- AOP를 이용해 트랜잭션 속성을 지정하는 방법에는 포인트컷 표현식과 메서드 이름 패턴을 이용하는 방법과 타깃에 직접 부여하는 @Transactional 어노테이션을 사용하는 방법이 있다.
+- @Transactional을 이용한 트랜잭션 속성을 테스트에 적용하면 손쉽게 DB를 사용하는 코드의 테스트를 만들 수 있다. (기본값 : Rollback)
