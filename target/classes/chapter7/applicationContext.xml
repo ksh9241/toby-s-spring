@@ -21,17 +21,7 @@
 		<property name="dataSource" ref="dataSource" />
 	</bean>
 	
-	<bean id="sqlService" class="practice.spring.toby.chapter7.SimpleSqlService">
-		<property name="sqlMap">
-			<map>
-				<entry key="userAdd" value="INSERT INTO users(id, name, password, email, user_level, login, recommend) VALUES(?,?,?,?,?,?,?)" />
-				<entry key="userGet" value="SELECT * FROM users WHERE id = ?" />
-				<entry key="userGetAll" value="SELECT * FROM users" />
-				<entry key="userDeleteAll" value="DELETE FROM users" />
-				<entry key="userGetCount" value="SELECT COUNT(*) FROM users" />
-				<entry key="userUpdate" value="UPDATE USERS SET name = ?, password = ?, email = ?, user_level = ?, login = ?, recommend = ? WHERE id = ?" />
-			</map>
-		</property>
+	<bean id="sqlService" class="practice.spring.toby.chapter7.XmlService">
 	</bean>
 		
 	<bean id="userDao" class="practice.spring.toby.chapter7.UserDaoJdbc">

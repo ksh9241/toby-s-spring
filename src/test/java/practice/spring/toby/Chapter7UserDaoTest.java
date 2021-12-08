@@ -43,7 +43,7 @@ public class Chapter7UserDaoTest {
 	}
 	
 	@Test
-	@Transactional
+	@Transactional ()
 	public void addTest() {
 		userDao.deleteAll();
 		assertThat(userDao.getCount(), is(0));

@@ -5,5 +5,5 @@
 // ���� ��¥: 2021.12.06 �ð� 09:56:43 PM KST 
 //
 
-@javax.xml.bind.annotation.XmlSchema(namespace = "http://www.example.org/sqlmap", elementFormDefault = javax.xml.bind.annotation.XmlNsForm.QUALIFIED)
+@javax.xml.bind.annotation.XmlSchema(namespace = "http://www.epril.com/sqlmap", elementFormDefault = javax.xml.bind.annotation.XmlNsForm.QUALIFIED)
 package practice.spring.toby.chapter7.jaxb;
