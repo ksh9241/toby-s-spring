@@ -24,6 +24,8 @@ public class Chapter7JaxbTest {
 		
 		Unmarshaller unmarshaller = context.createUnmarshaller(); // 언마샬러 생성 
 		
+		System.out.println("Root "+System.getProperty("user.dir")+"\\src\\main\\java\\practice\\spring\\toby\\chapter7\\jaxb");
+		
 		Sqlmap sqlmap = (Sqlmap) unmarshaller.unmarshal(getClass().getResourceAsStream("sqlmap.xml"));
 		
 		List<SqlType> sqlList = sqlmap.getSql();
