@@ -1,4 +1,4 @@
-package practice.spring.toby;
+package practice.spring.toby.chapter7;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;

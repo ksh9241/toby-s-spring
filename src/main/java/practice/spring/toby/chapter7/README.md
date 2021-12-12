@@ -187,3 +187,91 @@ public class JaxbXmlSqlReader implements SqlReader {
 ```
 
 디폴트 의존 오브젝트를 사용하는 방법에는 한 가지 단점이 있다. 설정을 통해 다른 구현 오브젝트를 사용하게 해도 DefaultSqlService는 생성자에서 일단 디폴트 의존 오브젝트를 다 만들어버린다는 점이다. DefaultSqlService의 생성자에서 extends한 오브젝트가 만들어진다. 물론 property로 설정한 오브젝트로 바로 재정의 되지만 사용하지 않는 오브젝트가 만들어진다는 점이 조금 아쉽다. 하지만 그 아쉬움을 감내하고도 남을 장점이 많기 때문에 신경쓰지 않고 사용한다. 그리고 오브젝트가 매우 복잡하고 많아서 만들어지는 것 자체가 부담이 된다면 @PostConstruct 초기화 메서드를 이용해 프로퍼티가 설정됐는지 확인하고 없는 경우에만 디폴트 오브젝트를 만드는 방법을 사용하면 된다.
+
+### 서비스 추상화 적용
+
+##### OXM 서비스 추상화
+JAXB 외에도 실전에서 자주 사용되는 XML과 자바오브젝트 매핑 기술이 있다.
+1. Castor XML : 설정파일이 필요 없는 인트로스펙션 모드를 지원하기도 하는 매우 간결하고 가벼운 바인딩 프레임워크다.
+2. JiBX : 뛰어난 퍼포먼스를 자랑하는 XML 바인딩 기술이다.
+3. XmlBeans : 아파치 XML 프로젝트의 하나다. XML의 정보셋을 효과적으로 제공해준다.
+4. Xstream : 관례를 이용해서 설정이 없는 바인딩을 지원하는 XML 바인딩 기술의 하나다.
+
+이렇게 XML과 자바오브젝트를 매핑해서 상호 변환해주는 기술을 간단히 OXM (Object-XML Mapping) 이라고 한다. OXM 프레임워크와 기술들은 기능 면에서 상호 호환성이 있다. JAXB를 포함해서 다섯 가지 기술 모두 사용 목적이 동일하기 때문에 유사한 기능과 API를 제공한다. 기능이 같은 여러 가지 기술이 존재한다는 이야기가 나오면 떠오르는 게 있다. 바로 서비스 추상화다. 스프링은 트랜잭션, 메일전송 뿐 아니라 OXM에 대해서도 서비스 추상화 기능을 제공한다.
+
+##### OXM 서비스 인터페이스
+스프링이 제공하는 OXM 추상화 서비스 인터페이스에는 자바오브젝트를 XML로 변환하는 Marshaller와 반대로 XML을 자바 오브젝트로 변환하는 Unmarshaller이 있다. Unmarshaller 인터페이스는 아주 간단하다. XML 파일에 대한 정보를 담은 Source 타입의 오브젝트를 주면, 설정에서 지정한 OXM 기술을 이용해 자바오브젝트 트리로 변환하고, 루트 오브젝트를 돌려준다.
+
+##### Castor 구현
+Castor로 OXM 기술을 바꿔보자. Castor에서 필요한 매핑정보가 준비됐다면 unmarshaller 빈 설정만 바꿔주면 된다. 간단하게 정의해서 사용할 수 있는 XML 매핑파일을 이용해보자. [라이브러리 이슈로 테스트 진행까진 완료하지 못했다.]
+
+##### 멤버 클래스를 참조하는 통합 클래스
+의존 오브젝트를 자신만이 사용하도록 독점하는 구조로 만드는 방법이다. SqlReader 구현을 외부에서 사용하지 못하도록 제한하고 스스로 최적화된 구조로 만들어두는 것이다. 밖에서 볼 때는 하나의 오브젝트로 보이지만 내부에서는 의존관계를 가진 두 개의오브젝트가 깔끔하게 결합돼서 사용된다. 유연성은 조금 손해를 보더라도 내부적으로 낮은 결합도를 유지한 채로 응집도가 높은 구현을 만들 때 유용하게 쓸 수 있는 방법이다.
+
+OxmSqlReader를 private으로 설정하여 내부에서만 사용하도록 클래스를 만들고, final을 통해 OxmSqlReader 오브젝트를 생성하여 DI 하거나 변경할 수 없게 강한 결합으로 확장이나 변경에 제한을 두었다. 이유는 OXM을 이용하는 서비스 구조로 최적화하기 위해서다. 하나의 클래스로 만들어두기 때문에 빈의 등록과 설정은 단순해지고 쉽게 사용할 수 있다.
+OxmSqlReader는 OXM을 사용하므로 Unmarshaller가 필요하다. 또한 매핑파일도 외부에서 지정할 수 있게 해줘야 한다. 이 두개의 필요한 정보를 OxmSqlService의 프로퍼티로 정의해두고 이를 통해 전달받게 만든다.
+
+```JAVA
+public class OxmSqlService implements SqlService{
+	private final OxmSqlReader oxmSqlReader = new OxmSqlReader();
+	private SqlRegistry sqlRegistry = new HashMapSqlRegistry();
+	
+	public void setUnmarshaller (Unmarshaller unmarshaller) {
+		oxmSqlReader.setUnmarshaller(unmarshaller);
+	}
+	
+	public void setSqlmapFile (String sqlmapFile) {
+		oxmSqlReader.setSqlmapFile(sqlmapFile);
+	}
+	
+	public void setSqlRegistry (SqlRegistry sqlRegistry) {
+		this.sqlRegistry = sqlRegistry;
+	}
+	
+	@PostConstruct
+	public void loadSql() {
+		this.oxmSqlReader.read(this.sqlRegistry);
+	}
+	
+	@Override
+	public String getSql (String key) throws SqlRetrievalFailureException {
+		try {
+			return this.sqlRegistry.findSql(key);
+		} catch (SqlNotFoundException e) {
+			throw new SqlRetrievalFailureException(e + "");
+		}
+	}
+	
+	private class OxmSqlReader implements SqlReader{
+		private Unmarshaller unmarshaller;
+		private final static String DEFAULT_SQLMAP_FILE = "/chapter7/sqlmap.xml";
+		private String sqlmapFile = DEFAULT_SQLMAP_FILE;
+		
+		public void setUnmarshaller (Unmarshaller unmarshaller) {
+			this.unmarshaller = unmarshaller;
+		}
+		
+		public void setSqlmapFile (String sqlmapFile) {
+			this.sqlmapFile = sqlmapFile;
+		}
+		
+		@Override
+		public void read(SqlRegistry sqlRegistry) {
+			try {
+				Source source = new StreamSource (getClass().getResourceAsStream(sqlmapFile));
+				Sqlmap sqlmap = (Sqlmap) this.unmarshaller.unmarshal(source); // OxmSqlService를 통해 전달받은 OXM 인터페이스 구현 오브젝트를 가지고 언마샬링 작업 수행
+				
+				for (SqlType sql : sqlmap.getSql()) {
+					sqlRegistry.registerSql(sql.getKey(), sql.getValue());
+				}
+				
+			} catch (IOException e) {
+				// 언마샬 작업 중 IO 에러가 났다면 설정을 통해 제공받은 XML 파일 이름이나 정보가 잘못됐을 가능성이 제일 높다. 이런 경우에 가장 적합한 런타임 예외 중 하나인 IllegalArgumentException으로 포장해서 던진다.
+				throw new IllegalArgumentException(this.sqlmapFile + " 을 가져올 수 없습니다.", e);
+			}
+		}
+	}
+}
+```
+
+이 방법은 앞서 UserDaoJdbc 안에서 JdbcTemplate을 직접 만들어 사용할 때 적용했던 것과 비슷하다. UserDaoJdbc는 스스로 DataSource가 필요하지 않지만 자신의 프로퍼티로 DataSource를 등록해두고 이를 DI 받아서 JdbcTemplate을 생성하면서 전달해줬다.

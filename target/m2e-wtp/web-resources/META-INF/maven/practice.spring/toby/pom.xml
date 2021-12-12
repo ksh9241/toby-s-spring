@@ -214,6 +214,14 @@
 		    <version>2.2.11</version>
 		</dependency>
 		
+		<!-- OXM Dependency -->
+		<dependency>
+		    <groupId>org.springframework</groupId>
+		    <artifactId>spring-oxm</artifactId>
+		    <version>${org.springframework-version}</version>
+		</dependency>
+		
+		
 	</dependencies>
     <build>
         <plugins>
