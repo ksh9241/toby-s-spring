@@ -358,11 +358,15 @@ public interface ResourceLoader {
 }
 ```
 
-|접두어| 예 | 설명|
-|file : | file:/C:/temp/file.txt | 파일 시스템의 C:/temp 폴더에 있는 file.txt를 리소스로 만들어준다.|
-|classpath : | classpath:file.txt | 클래스패스의 루트에 존재하는 file.txt 리소스에 접근하게 해준다.|
-| 없음 | WEB-INF/test.dat | 접두어가 없는 경우에는 ResourceLoader 구현에 따라 리소스의 위치가 결정된다. ServletResourceLoader라면 서블릿 컨텍스트의 루트를 기준으로 해석한다. |
-| http: | http://www.myserver.com/test/dat | HTTP 프로토콜을 사용해 접근할 수 있는 웹상의 리소스를 지정한다. ftp:도 사용할 수 있다. |
+접두어		예  				설명
+
+file : 		 file:/C:/temp/file.txt 	 	파일 시스템의 C:/temp 폴더에 있는 file.txt를 리소스로 만들어준다.
+
+classpath : 	 classpath:file.txt 		 	클래스패스의 루트에 존재하는 file.txt 리소스에 접근하게 해준다.
+
+없음 		 WEB-INF/test.dat 		 	접두어가 없는 경우에는 ResourceLoader 구현에 따라 리소스의 위치가 결정된다. ServletResourceLoader라면 서블릿 컨텍스트의 루트를 기준으로 해석한다. 
+
+http: 		 http://www.myserver.com/test/dat 	 HTTP 프로토콜을 사용해 접근할 수 있는 웹상의 리소스를 지정한다. ftp:도 사용할 수 있다. 
 
 리소스로더의 대표적인 예는 바로 스프링의 애플리케이션 컨텍스트다. 애플리케이션 컨텍스트가 구현해야 하는 인터페이스인 ApplicationContext는 ResourceLoader 인터페이스를 상속하고 있다. 예를 들어 애플리케이션 컨텍스트가 사용할 스프링 설정정보가 담긴 XML 파일도 리소스로더를 이용해 Resource 형태로 읽어온다. 또한 빈의 프로퍼티 값을 변환할 때도 리소스 로더가 자주 사용된다.
 
