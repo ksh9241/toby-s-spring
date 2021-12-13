@@ -275,3 +275,110 @@ public class OxmSqlService implements SqlService{
 ```
 
 이 방법은 앞서 UserDaoJdbc 안에서 JdbcTemplate을 직접 만들어 사용할 때 적용했던 것과 비슷하다. UserDaoJdbc는 스스로 DataSource가 필요하지 않지만 자신의 프로퍼티로 DataSource를 등록해두고 이를 DI 받아서 JdbcTemplate을 생성하면서 전달해줬다.
+
+##### 위임을 이용한 BaseSqlService의 재사용
+OxmlSqlService는 SqlReader를 스태틱 멤버 클래스로 고정시켜서 OXM에 특화된 형태로 재구성했기 때문에 설정은 간결해지고 의도되지 않은 방식으로 확장될 위험이 없다. 하지만 OxmSqlService와 기존에 만들었던 BaseSqlService의 loadSql() 과 getSql() 의 코드 중복이 발생한다. 간단한 경우 중복코드로 사용해도 큰 문제가 없지만 복잡한 코드일 경우 코드의 중복은 심각한 문제가 될 수도 있다. 수정이 필요할 때마다 두 오브젝트를 따로 수정하다가 실수를 발생할 경우도 생겨난다. 이런 경우에는 위임 구조를 이용해 코드의 중복을 제거할 수도 있다. loasSql()과 getSql()의 구현 로직은 BaseSqlService에만 두고, OxmSqlService는 일종의 설정과 기본 구성을 변경해주기 위한 어댑터 같은 개념으로 BaseSqlService의 앞에 두는 설계가 가능하다.
+
+```JAVA
+public class OxmSqlService implements SqlService{
+	private final BaseSqlService baseSqlService = new BaseSqlService(); // SqlService의 실제 구현 부분을 위임할 대상인 BaseSqlService를 인스턴스 변수로 정의해둔다.
+	private final OxmSqlReader oxmSqlReader = new OxmSqlReader();
+	private SqlRegistry sqlRegistry = new HashMapSqlRegistry();
+	
+	public void setUnmarshaller (Unmarshaller unmarshaller) {
+		oxmSqlReader.setUnmarshaller(unmarshaller);
+	}
+	
+	public void setSqlmapFile (String sqlmapFile) {
+		oxmSqlReader.setSqlmapFile(sqlmapFile);
+	}
+	
+	public void setSqlRegistry (SqlRegistry sqlRegistry) {
+		this.sqlRegistry = sqlRegistry;
+	}
+	
+	@PostConstruct
+	public void loadSql() {
+		// OxmSqlService의 프로퍼티를 통해서 초기화된 SqlReader와 SqlRegistry를 실제 작업을 위임할 대상인 baseSqlService에 주입한다.
+		this.baseSqlService.setSqlReader(this.oxmSqlReader);
+		this.baseSqlService.setSqlRegistry(this.sqlRegistry);
+		
+		// SQL을 등록하는 초기화 작업을 baseSqlService에 위임한다.
+		this.baseSqlService.loadSql();
+	}
+	
+	@Override
+	public String getSql (String key) throws SqlRetrievalFailureException {
+		return baseSqlService.getSql(key);
+	}
+}
+```
+이렇게 위임구조를 이용하면 중복코드를 깔끔하게 제거할 수 있다. 이와 관련된 로직이 변경되면 BaseSqlService만 수정해주면 된다.
+
+##### 리소스 추상화
+자바에는 다양한 위치에 존재하는 리소스에 대해 단일화된 접근 인터페이스를 제공해주는 클래스가 없다. 그나마 URL을 이용해 웹상의 리소스에 접근할 때 사용할 수 있는 java.net.URL 클래스가 있을 뿐이다. 이 클래스는 http, ftp, file과 같은 접두어를 지정할 수 있어서 다양한 원격 리소스에 접근이 가능하다는 장점이 있다.
+
+##### 리소스
+스프링은 자바에 존재하는 일관성 없는 리소스 접근 API를 추상화해서 Resource라는 추상화 인터페이스를 정의했다. 다른 서비스 추상화 오브젝트와 달리 Resource는 스프링에서 빈이 아니라 값으로 취급된다. 단순한 정보를 가진 값으로 지정된다. Resource는 빈으로 등록하지 않는다고 했으니 기껏 외부에서 지정한다고 해봐야 Property의 value 어트리뷰트에 넣는 방법밖에 없다.
+
+```JAVA
+public interface Resource extends InputStreamSource {
+	// 리소스의 존재나 읽기 가능한지 여부를 확인할 수 있다. 또 현재 리소스에 대한 입력 스트림이 열려 있는지도 확인 가능하다.
+	boolean exists();
+	boolean isReadable();
+	boolean isOpen();
+
+	// JDK의 URL, URI, File 형태로 전환 가능한 리소스에 사용된다.
+	URL getURL() throws IOException;
+	URI getURI() throws IOException;
+	File getFile() throws IOException;
+
+
+	Resource createRelative(String relativePath) throws IOException;
+
+	// 리소스에 대한 이름과 부가적인 정보를 제공한다.
+	long lastModified() throws IOException;
+	String getFilename();
+	String getDescription();
+}
+
+public interface InputStreamSource {
+	// 모든 리소스는 InputStream 형태로 가져올 수 있다.
+	InputStream getInputStream() throws IOException;
+}
+```
+
+##### 리소스 로더
+그래서 스프링은 URL 클래스와 유사하게 접두어를 이용해 Resource 오브젝트를 선언하는 방법이 있다. 문자열로 정의된 리소스를 실제 Resource 타입 오브젝트로 변환해주는 ResourceLoader를 제공한다.
+
+```JAVA
+public interface ResourceLoader {
+	// location에 담긴 스프링 정보를 바탕으로 그에 적절한 Resource로 변환해준다.
+	Resource getResource(String location);
+}
+```
+
+|접두어| 예 | 설명|
+|file : | file:/C:/temp/file.txt | 파일 시스템의 C:/temp 폴더에 있는 file.txt를 리소스로 만들어준다.|
+|classpath : | classpath:file.txt | 클래스패스의 루트에 존재하는 file.txt 리소스에 접근하게 해준다.|
+| 없음 | WEB-INF/test.dat | 접두어가 없는 경우에는 ResourceLoader 구현에 따라 리소스의 위치가 결정된다. ServletResourceLoader라면 서블릿 컨텍스트의 루트를 기준으로 해석한다. |
+| http: | http://www.myserver.com/test/dat | HTTP 프로토콜을 사용해 접근할 수 있는 웹상의 리소스를 지정한다. ftp:도 사용할 수 있다. |
+
+리소스로더의 대표적인 예는 바로 스프링의 애플리케이션 컨텍스트다. 애플리케이션 컨텍스트가 구현해야 하는 인터페이스인 ApplicationContext는 ResourceLoader 인터페이스를 상속하고 있다. 예를 들어 애플리케이션 컨텍스트가 사용할 스프링 설정정보가 담긴 XML 파일도 리소스로더를 이용해 Resource 형태로 읽어온다. 또한 빈의 프로퍼티 값을 변환할 때도 리소스 로더가 자주 사용된다.
+
+##### Resource를 이용해 XML 파일 가져오기
+Resource를 사용할 떄는 Resource 오브젝트가 실제 리소스는 아니라는 점을 주의해야 한다. Resource는 단지 리소스에 접근할 수 있는 추상화된 핸들러일 뿐이다. 공개적인 웹 서버에서 SQL 정보를 가져올 일이야 아마도 없겠지만, 기업의 DB관련 정보를 관리하는 내부 서버가 있다면 SQL 정보를 HTTP 프로토콜로 가져올 수 있게 하는 건 좋은 방법이다.
+
+### 인터페이스 상속을 통한 안전한 기능확장
+원칙적으로 권장되진 않지만 때로는 서버가 운영 중인 상태에서 서버를 재시작하지 않고 긴급하게 애플리케이션이 사용 중인 SQL을 변경해야 할 수도 있다. 운영시간 중에 예상하지 못한 SQL의 오류를 발견했다거나, 아니면 특별한 이유로 SQL 조건이나 참조 테이블을 급하게 변경할 수도 있다.
+
+##### DI를 의식하는 설계
+SqlService의 내부 기능을 적절한 책임과 역할에 따라 분리하고, 인터페이스를 정의해 느슨하게 연결해주고, DI를 통해 유연하게 의존관계를 지정하도록 설계해뒀기 때문에 그 뒤의 작업은 매우 쉬워졌다. 결국 유연하고 확장 가능한 좋은 오브젝트 설계와 DI 프로그래밍 모델은 서로 상승작용을 한다.
+DI에 필요한 유연하고 확장성이 뛰어난 오브젝트 설계를 하려면 많은 고민과 학습, 훈련, 경험이 필요하다. DI를 적용하려면 커다란 오브젝트 하나만 존재해서는 안된다. 최소한 두 개 이상의 의존관계를 가지고 서로 협력해서 일하는 오브젝트가 필요하다. 그래서 적절한 책임에 따라 오브젝트를 분리해줘야 한다. DI는 확장을 위해 필요한 것이므로 항상 미래에 일어날 변화를 예상하고 고민해야 적합한 설계가 가능해진다.
+
+##### DI와 인터페이스 프로그래밍
+DI를 DI답게 만들려면 두 개의 오브젝트가 인터페이스를 통해 느슨하게 연결돼야 한다. 인터페이스를 사용하는 첫 번째 이유는 다형성을 얻기 위해서다. 하나의 인터페이스를 통해 여러 개의 구현을 바꿔가면서 사용할 수 있게 하는 것이 DI가 추구하는 첫 번째 목적이다. 물론 지금까지 여러 가지 DI 적용 예를 살펴봤듯이 의존 오브젝트가 가진 핵심 로직을 바꿔서 적용하는 것 외에도 프록시, 데코레이터, 어댑터, 테스트 대역 등의 다양한 목적을 위해 인터페이스를 통한 다형성이 활용된다.
+
+두 번째 이유는 인터페이스 분리 원칙을 통해 클라이언트와 의존 오브젝트 사이의 관계를 명확하게 해줄 수 있기 때문이다. 클라이언트 A와 의존 오브젝트 B가 있다고 가정했을 때 A와 B가 인터페이스로 연결되어 있다면 A는 B의 인터페이스만 바라볼 뿐이다. B인터페이스를 통해 C, D 등의 오브젝트를 구현해도 A는 B의 인터페이스를 바라보기 때문에 A에게 DI가 가능하다. 그런데 C, D 오브젝트는 B가 아니라 E라는 다른 인터페이스를 구현하고 있을 수도 있다. 그렇다면 C, D 오브젝트는 왜 E 인터페이스를 구현하고 있을까?? 그 이유는 E라는 인터페이스가 그려주는 창으로 C, D를 바라보는 다른 종류의 클라이언트 (AA 등) 이 존재하기 때문이다. 각기 다른 관심과 목적을 가지고 어떤 오브젝트에 의존하고 있을 수 있다는 의미다. 굳이 E라는 인터페이스에 정의된 내용에는 아무런 관심이 없는 A 오브젝트가 E 인터페이스 메서드까지 모두 노출되어 있는 C, D 라는 클래스에 직접 의존할 이유가 없다. 게다가 E 인터페이스가 변하면 관심도 없는 A 오브젝트의 코드에 영향을 줄 수도 있다. 오브젝트가 그 자체로 충분히 응집도가 높은 작은 단위로 설계됐더라도, 목적과 관심이 각기 다른 클라이언트가 있다면 인터페이스를 통해 적절하게 분리해줄 필요가 있고, 이를 객체지향 설계 원칙에서는 인터페이스 분리 원칙 (Interface Segregation Principle) 이라고 부른다.
+
+다형성은 물론이고 클라이언트별 다중 인터페이스 구현과 같은 유연하고 확장성 높은 설계가 가능함에도 인터페이스를 피할 이유가 없다.

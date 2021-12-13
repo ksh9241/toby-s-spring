@@ -40,7 +40,6 @@ public class OxmTest {
 	@Test
 	public void OxmSqlServiceTest () {
 		OxmSqlService sqlService = new OxmSqlService();
-		sqlService.setUnmarshaller(unmarshaller);
 		
 		assertThat(sqlService.getSql("userGetAll"), is("SELECT * FROM users"));
 	}
