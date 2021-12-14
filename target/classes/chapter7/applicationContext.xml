@@ -34,13 +34,26 @@
 	<!-- 디폴트 의존관계 빈 설정 -->
 	<bean id="sqlServiceDefault" class="practice.spring.toby.chapter7.DefaultSqlService" />
 	
-	<bean id="sqlService" class="practice.spring.toby.chapter7.BaseSqlService">
+	<bean id="sqlService_Old" class="practice.spring.toby.chapter7.BaseSqlService">
 		<property name="sqlReader" ref="sqlReader" />
 		<property name="sqlRegistry" ref="sqlRegistry" />
 	</bean>
 	
-	<bean id="sqlRegistry" class="practice.spring.toby.chapter7.HashMapSqlRegistry">
+	<bean id="sqlService" class="practice.spring.toby.chapter7.OxmSqlService">
+		<!-- <property name="unmarshaller" ref="unmarshaller" /> -->
+		<property name="sqlRegistry" ref="sqlRegistry" />
 	</bean>
+	
+	<bean id="unmarshaller" class="org.springframework.oxm.jaxb.Jaxb2Marshaller">
+		<property name="contextPath" value="practice.spring.toby.chapter7.jaxb" />
+	</bean>
+	
+	<bean id="sqlAdminService" class="practice.spring.toby.chapter7.SqlAdminService">
+		<property name="sqlRegistry" ref="sqlRegistry" />
+	</bean>
+	
+	<!-- <bean id="sqlRegistry" class="practice.spring.toby.chapter7.ConcurrentHashMapSqlRegistry" /> -->
+	<bean id="sqlRegistry" class="practice.spring.toby.chapter7.HashMapSqlRegistry" />
 	
 	<bean id="sqlReader" class="practice.spring.toby.chapter7.JaxbXmlSqlReader">
 		<property name="sqlmapFile" value="/chapter7/sqlmap.xml" />

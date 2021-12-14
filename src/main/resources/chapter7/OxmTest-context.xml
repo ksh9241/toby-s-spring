@@ -6,16 +6,18 @@
 
 	<bean id="sqlService" class="practice.spring.toby.chapter7.OxmSqlService">
 		<property name="unmarshaller" ref="unmarshaller" />
-		<property name="sqlmap" value="file:/toby's-spring/resources/chapter7/sqlmap.xml" />
+		<!-- <property name="sqlmap" value="file:/toby's-spring/resources/chapter7/sqlmap.xml" /> -->
+		<property name="sqlRegistry" ref="sqlRegistry"/>
 	</bean>
-
+	
+	<bean id="sqlRegistry" class="practice.spring.toby.chapter7.ConcurrentHashMapSqlRegistry" />
+	
+	<!-- 
 	<bean id="unmarshaller" class="org.springframework.oxm.jaxb.Jaxb2Marshaller">
 		<property name="contextPath" value="practice.spring.toby.chapter7.jaxb" />
 	</bean>
-	 
-	 <!-- 
+	  -->
 	 <bean id="unmarshaller" class="org.springframework.oxm.castor.CastorMarshaller">
 	 	<property name="mappingLocation" value="/chapter7/mapping.xml" />
 	 </bean>
-	  -->
 </beans>
