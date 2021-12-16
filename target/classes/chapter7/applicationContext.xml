@@ -39,25 +39,23 @@
 		<property name="sqlRegistry" ref="sqlRegistry" />
 	</bean>
 	
-	<bean id="sqlService" class="practice.spring.toby.chapter7.OxmSqlService">
-		<!-- <property name="unmarshaller" ref="unmarshaller" /> -->
+	<!-- <bean id="sqlService" class="practice.spring.toby.chapter7.OxmSqlService">
+		<property name="unmarshaller" ref="unmarshaller" />
 		<property name="sqlRegistry" ref="sqlRegistry" />
 	</bean>
 	
 	<bean id="unmarshaller" class="org.springframework.oxm.jaxb.Jaxb2Marshaller">
 		<property name="contextPath" value="practice.spring.toby.chapter7.jaxb" />
-	</bean>
+	</bean> -->
 	
-	<bean id="sqlAdminService" class="practice.spring.toby.chapter7.SqlAdminService">
+	<!-- <bean id="sqlAdminService" class="practice.spring.toby.chapter7.SqlAdminService">
 		<property name="sqlRegistry" ref="sqlRegistry" />
-	</bean>
+	</bean> -->
 	
 	<!-- <bean id="sqlRegistry" class="practice.spring.toby.chapter7.ConcurrentHashMapSqlRegistry" /> -->
 	<bean id="sqlRegistry" class="practice.spring.toby.chapter7.HashMapSqlRegistry" />
 	
-	<bean id="sqlReader" class="practice.spring.toby.chapter7.JaxbXmlSqlReader">
-		<property name="sqlmapFile" value="/chapter7/sqlmap.xml" />
-	</bean>
+	<bean id="sqlReader" class="practice.spring.toby.chapter7.JaxbXmlSqlReader" />
 		
 	<bean id="userDao" class="practice.spring.toby.chapter7.UserDaoJdbc">
 		<property name="dataSource" ref="dataSource" />
