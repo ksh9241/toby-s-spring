@@ -9,16 +9,23 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ConcurrentHashMapTest {
+public abstract class AbstractUpdatableSqlRegistryTest {
 
 	UpdatableSqlRegistry sqlRegistry;
 	
 	@Before
 	public void setUp() {
-		sqlRegistry = new ConcurrentHashMapSqlRegistry();
+		sqlRegistry = createUpdatableSqlRegistry();
+		
 		sqlRegistry.registerSql("KEY1", "SQL1");
 		sqlRegistry.registerSql("KEY2", "SQL2");
 		sqlRegistry.registerSql("KEY3", "SQL3");
+	}
+	
+	abstract protected UpdatableSqlRegistry createUpdatableSqlRegistry();
+	
+	protected void checkFind(String expected1, String expected2, String expected3) {
+		
 	}
 	
 	@Test

@@ -7,5 +7,6 @@ public class DefaultSqlService extends BaseSqlService{
 		setSqlReader (new JaxbXmlSqlReader());
 //		setSqlRegistry(new HashMapSqlRegistry());
 		setSqlRegistry(new ConcurrentHashMapSqlRegistry());
+//		setSqlRegistry(new EmbeddedDbSqlRegistry());
 	}
 }
