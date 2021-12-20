@@ -1,4 +1,4 @@
-package practice.spring.toby.chapter6;
+package practice.spring.toby.chapter7;
 
 import java.util.List;
 

@@ -465,3 +465,18 @@ public class MyClass {
 - 정책과 관례를 이용한 프로그래밍
 어노테이션 같은 메타정보를 활용하는 프로그래밍 방식은 코드를 이용해 명시적으로 동작 내용을 기술하는 대신 코드 없이도 미리 약속한 규칙 또는 관례를 따라서 프로그램이 동작하도록 만드는 프로그래밍 스타일을 적극적으로 포용하게 만들어왔다. 그 때문에 정책을 기억 못하거나 잘못 알고 있을 경우 의도한 대로 동작하지 않는 코드가 만들어질 수 있다. 어쨋든 스프링은 점차 어노테이션으로 메타정보를 작성하고, 미리 정해진 정책과 관례를 활용해서 간결한 코드에 많은 내용을 담을 수 있는 방식을 적극 도입하고 있다.
 
+##### context:annotation-config 제거
+context:annotation-config 를 xml에서 제거 후 테스트를 돌려도 정상작동한다. 왜 문제가 발생하지 않을까? context:annotation-config는 @postConstruct를 붙인 메서드가 빈이 초기화된 후에 자동으로 실행되도록 사용했다. 스프링 컨테이너가 참조하는 DI 정보의 위치가 XML에서 TestApplicationContext라는 자바 클래스로 바뀐 것이다. 이 때문에 context:annotation-config 를 제거해도 된 것이다. 일단은 @Configuration이 붙은 자바클래스를 DI 정보로 사용하면 context:annotation-config은 더이상 필요하지 않다고만 기억해두자.
+
+##### Configuration Class Bean 전환
+
+```JAVA
+<!-- 테스트용 UserService의 등록 -->
+<bean id="testUserService" class="practice.spring.toby.chapter6.UserServiceTest$TestUserServiceImple" parent="userService" />
+
+// public 으로 접근제한자를 변경한 스태틱 클래스
+public static class TestUserServiceImple extends UserServiceImple {
+```
+위의 빈을 자바 코드로 옮기다 보면 testUserService 클래스를 찾을 수 없다는 에러를 만나게 될 것이다. TestUserServiceImple 는 테스트 용도로 만든 것이므로 UserServiceTest의 스태틱 멤버 클래스로 정의했다. 찾을 수 없는 이유는 public 접근 제한자를 갖고 있지 않기 때문이다. 스프링의 빈에 넣는 클래스는 굳이 public 이 아니어도 된다. 내부적으로 리플렉션 API를 이용하기 때문에 private으로 접근을 제한해도 빈의 클래스로 사용할 수 있다. 반면 직접 자바 코드에서 참조할 때는 패키지가 다르면 public 으로 접근 제한자를 바꿔줘야 한다.
+
+빈 팩토리에 생성된 빈을 인스턴스변수에 DI하기 위해서는 @AutoWired 혹은 @Injection을 통해 컨테이너가 주입해주게 해야 한다. @Resource는 앞에 두 어노테이션과 다르게 필드 이름 (인스턴스 변수) 을 기준으로 DI를 한다는 점이다.

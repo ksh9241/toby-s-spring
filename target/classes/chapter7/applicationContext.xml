@@ -14,23 +14,6 @@
 	
 	<!-- @Transactional 이 붙은 타입과 메서드에 트랜잭션 부가기능을 담은 프록시를 추가하도록 만들어주는 후처리기 등록 -->
 	<tx:annotation-driven/>
-
-	<!-- 코드의 어노테이션을 이용해서 부가적인 빈 설정 또는 초기화 작업을 해주는 후처리기를 등록 -->	
-	<context:annotation-config />
-	
-	<bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
-		<property name="driverClassName" value="oracle.jdbc.driver.OracleDriver"/>
-		<property name="url" value="jdbc:oracle:thin:@localhost:1521:xe" />
-		<property name="username" value="practice" />
-		<property name="password" value="1234" />	
-	</bean>
-	
-	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
-		<property name="dataSource" ref="dataSource" />
-	</bean>
-	
-	<!-- 디폴트 의존관계 빈 설정 -->
-	<bean id="sqlServiceDefault" class="practice.spring.toby.chapter7.DefaultSqlService" />
 	
 	<bean id="sqlService_Old" class="practice.spring.toby.chapter7.BaseSqlService">
 		<property name="sqlReader" ref="sqlReader" />
@@ -50,17 +33,9 @@
 		<property name="sqlRegistry" ref="sqlRegistry" />
 	</bean> -->
 	
-	<bean id="sqlRegistry" class="practice.spring.toby.chapter7.ConcurrentHashMapSqlRegistry" />
 	<!-- <bean id="sqlRegistry" class="practice.spring.toby.chapter7.HashMapSqlRegistry" /> -->
 	<bean id="sqlRegistry_n" class="practice.spring.toby.chapter7.EmbeddedDbSqlRegistry">
 		<property name="dataSource" ref="embeddedDatabase" />
-	</bean>
-	
-	<bean id="sqlReader" class="practice.spring.toby.chapter7.JaxbXmlSqlReader" />
-		
-	<bean id="userDao" class="practice.spring.toby.chapter7.UserDaoJdbc">
-		<property name="dataSource" ref="dataSource" />
-		<property name="sqlService" ref="sqlServiceDefault" />
 	</bean>
 	
 	<!-- 내장형 DB 설정 -->

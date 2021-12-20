@@ -18,7 +18,7 @@ import practice.spring.toby.chapter7.Level;
 import practice.spring.toby.chapter7.User;
 import practice.spring.toby.chapter7.UserDao;
 
-@ContextConfiguration(locations = "/chapter7/applicationContext.xml")
+@ContextConfiguration(classes = TestApplicationContext.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 //@Transactional
 public class Chapter7UserDaoTest {
