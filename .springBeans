@@ -11,7 +11,6 @@
 		<config>src/main/resources/chapter2/junit.xml</config>
 		<config>src/main/resources/chapter5/applicationContext.xml</config>
 		<config>src/main/resources/chapter6/applicationContext.xml</config>
-		<config>src/main/resources/chapter7/applicationContext.xml</config>
 		<config>src/main/resources/chapter7/OxmTest-context.xml</config>
 	</configs>
 	<autoconfigs>

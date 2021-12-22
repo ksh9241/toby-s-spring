@@ -2,9 +2,12 @@ package practice.spring.toby.chapter7;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -18,7 +21,7 @@ import practice.spring.toby.chapter7.Level;
 import practice.spring.toby.chapter7.User;
 import practice.spring.toby.chapter7.UserDao;
 
-@ContextConfiguration(classes = TestApplicationContext.class)
+@ContextConfiguration(classes = applicationContextConfig.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 //@Transactional
 public class Chapter7UserDaoTest {

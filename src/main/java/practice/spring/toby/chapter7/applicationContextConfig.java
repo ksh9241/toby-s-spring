@@ -1,12 +1,9 @@
 package practice.spring.toby.chapter7;
 
-import javax.annotation.Resource;
 import javax.sql.DataSource;
 
-import org.hsqldb.Database;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.ImportResource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
@@ -15,13 +12,19 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.mail.MailSender;
 import org.springframework.oxm.Unmarshaller;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import oracle.jdbc.driver.OracleDriver;
 import practice.spring.toby.chapter7.UserServiceTest.TestUserServiceImple;
 
 @Configuration
-@ImportResource("/chapter7/applicationContext.xml")
-public class TestApplicationContext {
+@EnableTransactionManagement
+public class applicationContextConfig {
+	
+	/**
+	 * DB 연결과 트랜잭션
+	 */
 	
 	@Bean
 	public DataSource dataSource () {
@@ -35,41 +38,14 @@ public class TestApplicationContext {
 	}
 	
 	@Bean
-	public DataSource embeddedDatabase() {
-		EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder();
-		EmbeddedDatabase db = builder
-						.setType(EmbeddedDatabaseType.HSQL)
-						.addScript("/chapter7/schema.sql")
-						.build();
-		return db;
-	}
-	
-	@Bean
-	public DataSourceTransactionManager transactionManager() {
+	public PlatformTransactionManager transactionManager() {
 		return new DataSourceTransactionManager(dataSource()); 
 	}
 	
-	@Bean
-	public SqlService sqlService () {
-		OxmSqlService sqlService = new OxmSqlService();
-		sqlService.setUnmarshaller(unmarshaller());
-		sqlService.setSqlRegistry(sqlRegistry());
-		
-		return sqlService;
-	}
 	
-	@Bean
-	public SqlRegistry sqlRegistry () {
-		EmbeddedDbSqlRegistry sqlRegistry = new EmbeddedDbSqlRegistry();
-		sqlRegistry.setDataSource(embeddedDatabase());
-		
-		return sqlRegistry;
-	}
-	
-	@Bean
-	public SqlReader sqlReader() {
-		return new JaxbXmlSqlReader();
-	}
+	/**
+	 * 애플리케이션 로직 & 테스트
+	 */
 	
 	@Bean
 	public UserDao userDao () {
@@ -102,6 +78,29 @@ public class TestApplicationContext {
 		return new DummyMailSender();
 	}
 	
+	
+	/**
+	 * SQL 서비스 
+	 */
+	
+	@Bean
+	public SqlService sqlService () {
+		OxmSqlService sqlService = new OxmSqlService();
+		sqlService.setUnmarshaller(unmarshaller());
+		sqlService.setSqlRegistry(sqlRegistry());
+		
+		return sqlService;
+	}
+	
+	@Bean
+	public SqlRegistry sqlRegistry () {
+		EmbeddedDbSqlRegistry sqlRegistry = new EmbeddedDbSqlRegistry();
+		sqlRegistry.setDataSource(embeddedDatabase());
+//		sqlRegistry.setDataSource(dataSource());
+		
+		return sqlRegistry;
+	}
+	
 	@Bean
 	public Unmarshaller unmarshaller () {
 		Jaxb2Marshaller marshaller = new Jaxb2Marshaller();
@@ -109,5 +108,13 @@ public class TestApplicationContext {
 		return marshaller;
 	}
 	
-	
+	@Bean
+	public DataSource embeddedDatabase() {
+		EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder();
+		EmbeddedDatabase db = builder
+						.setType(EmbeddedDatabaseType.HSQL)
+						.addScript("/chapter7/schema.sql")
+						.build();
+		return db;
+	}
 }

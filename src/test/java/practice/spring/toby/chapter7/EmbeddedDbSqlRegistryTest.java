@@ -8,12 +8,16 @@ import java.util.Map;
 
 import org.junit.After;
 import org.junit.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 
 public class EmbeddedDbSqlRegistryTest extends AbstractUpdatableSqlRegistryTest{
 
 	EmbeddedDatabase db;
+	
+	@Autowired
+	UserDao dao;
 	
 	@Override
 	protected UpdatableSqlRegistry createUpdatableSqlRegistry() {
@@ -48,7 +52,6 @@ public class EmbeddedDbSqlRegistryTest extends AbstractUpdatableSqlRegistryTest{
 			// 첫 번째  SQL은 정상적으로 수정했지만 트랜잭션이 롤백되기 때문에 다시 원래대로 돌아와야 한다.
 			checkFind("SQL1", "SQL2", "SQL3"); 
 		}
-		
 	}
 	
 }

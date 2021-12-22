@@ -480,3 +480,39 @@ public static class TestUserServiceImple extends UserServiceImple {
 위의 빈을 자바 코드로 옮기다 보면 testUserService 클래스를 찾을 수 없다는 에러를 만나게 될 것이다. TestUserServiceImple 는 테스트 용도로 만든 것이므로 UserServiceTest의 스태틱 멤버 클래스로 정의했다. 찾을 수 없는 이유는 public 접근 제한자를 갖고 있지 않기 때문이다. 스프링의 빈에 넣는 클래스는 굳이 public 이 아니어도 된다. 내부적으로 리플렉션 API를 이용하기 때문에 private으로 접근을 제한해도 빈의 클래스로 사용할 수 있다. 반면 직접 자바 코드에서 참조할 때는 패키지가 다르면 public 으로 접근 제한자를 바꿔줘야 한다.
 
 빈 팩토리에 생성된 빈을 인스턴스변수에 DI하기 위해서는 @AutoWired 혹은 @Injection을 통해 컨테이너가 주입해주게 해야 한다. @Resource는 앞에 두 어노테이션과 다르게 필드 이름 (인스턴스 변수) 을 기준으로 DI를 한다는 점이다.
+
+##### 전용 태그 전환
+SQL 서비스에서 사용하는 내장형 DB를 생성하는 jdbc:embedded-database 전용 태그는 type에 지정한 내장형 DB를 생성하고 jdbc:script로 지정한 스크립트로 초기화한 뒤에 DataSource 타입 DB의 커넥션 오브젝트를 빈으로 등록해준다.
+
+```JAVA
+// <jdbc:embedded-database> 의 내부 작업과 아래코드의 작업이 거의 동일하다.
+@Bean
+public DataSource embeddedDatabase() {
+	EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder();
+	EmbeddedDatabase db = builder
+					.setType(EmbeddedDatabaseType.HSQL)
+					.addScript("/chapter7/schema.sql")
+					.build();
+	return db;
+}
+```
+
+tx:annotation-driven 은 @Transactional을 이용한 트랜잭션 AOP 기능을 지원한다. 기존에는 
+
+- InfrastructureAdvisorAutoProxyCreator
+- AnnotationTransactionAttributeSource
+- TransactionInterceptor
+- BeanFactoryTransactionAttributeSourceAdvisor
+
+의 오브젝트를 빈으로 등록하고 적절히 프로퍼티 값을 넣어줬어야 했지만 스프링 3.1부터는 @EnableTransactionManagement 어노테이션을 Configuration 클래스에 추가해주기만 하면 된다.
+
+### 빈 스캐닝과 자동와이어링
+
+##### @Autowired 를 이용한 자동와이어링
+빈의 프로퍼티에 다른 빈을 넣어서 런타임 관계를 맺어주려면 bean의 property를 사용해 빈을 정의하거나 자바 코드로 직접 수정자 메서드를 호출해줘야 했다. @Autowired는 자동와이어링 기법을 이용해서 조건에 맞는 빈을 찾아 자동으로 수정자 메서드나 필드에 넣어준다. 컨테이너가 이름이나 타입을 기준으로 주입될 빈을 찾아주기 때문에 빈의 프로퍼티 설정을 직접해주는 자바 코드나 XML의 양을 대폭 줄일 수 있다. 컨테이너가 자동으로 주입할 빈을 결정하기 어려운 경우도 있는데 이럴 땐 직접 주입할 대상을 지정하는 방법을 병행하면 된다.
+
+스프링은 @Autowired가 붙은 수정자 메서드가 있으면 파라미터 타입을 보고 주입 가능한 타입의 빈을 모두 찾는다. 만약 두 개 이상이 나오면 그 중에서 프로퍼티와 동일한 이름의 빈이 있는지 찾는다. 그 후 빈이 수정자 메서드의 프로퍼티와 이름이 일치하면 그 빈을 DI해주는데 이렇게 했을때도 후보를 찾지 못할경우 에러가 난다.
+
+자동와이어링 시 필드에 접근 제한자가 private인 것은 문제되지 않는다. 원래 자바 언어에서 private 필드에는 클래스 외부에서 값을 넣을 수 없게 되어 있지만 스프링의 리플렉션 API를 이용해 제약조건을 우회해서 값을 넣어준다.
+
+자동와이어링은 적절히 사용하면 DI 관련 코드를 대폭 줄일 수 있어서 편리하다. 반면에 빈 설정정보를 보고 다른 빈과 의존관계가 어떻게 맺어져 있는지 한눈에 파악하기 힘들다는 단점도 있긴 하다.

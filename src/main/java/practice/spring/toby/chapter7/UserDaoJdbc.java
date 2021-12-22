@@ -4,10 +4,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -16,9 +18,10 @@ import practice.spring.toby.chapter4.DuplicateUserIdException;
 
 public class UserDaoJdbc implements UserDao{
 
-	DataSource dataSource;
-	JdbcTemplate jdbcTemplate;
+	@Autowired
 	SqlService sqlService;
+	
+	JdbcTemplate jdbcTemplate;
 	
 	public UserDaoJdbc() {}
 	
@@ -37,8 +40,8 @@ public class UserDaoJdbc implements UserDao{
 		}
 	};
 	
+	@Autowired
 	public void setDataSource (DataSource dataSource) {
-		this.dataSource = dataSource;
 		jdbcTemplate = new JdbcTemplate(dataSource);
 	}
 	

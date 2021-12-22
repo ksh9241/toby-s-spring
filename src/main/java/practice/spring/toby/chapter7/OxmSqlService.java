@@ -17,7 +17,6 @@ public class OxmSqlService implements SqlService{
 	private final BaseSqlService baseSqlService = new BaseSqlService(); // SqlService의 실제 구현 부분을 위임할 대상인 BaseSqlService를 인스턴스 변수로 정의해둔다.
 	private final OxmSqlReader oxmSqlReader = new OxmSqlReader();
 	private SqlRegistry sqlRegistry = new HashMapSqlRegistry();
-	private Unmarshaller unmarshaller;
 	
 	public void setSqlmap (Resource sqlmap) {
 		this.oxmSqlReader.setSqlmap(sqlmap);
@@ -28,7 +27,7 @@ public class OxmSqlService implements SqlService{
 	}
 	
 	public void setUnmarshaller(Unmarshaller unmarshaller) {
-		this.unmarshaller = unmarshaller;
+		this.oxmSqlReader.unmarshaller = unmarshaller;
 	}
 	
 	@PostConstruct
