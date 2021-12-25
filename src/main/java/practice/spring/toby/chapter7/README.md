@@ -516,3 +516,60 @@ tx:annotation-driven 은 @Transactional을 이용한 트랜잭션 AOP 기능을 
 자동와이어링 시 필드에 접근 제한자가 private인 것은 문제되지 않는다. 원래 자바 언어에서 private 필드에는 클래스 외부에서 값을 넣을 수 없게 되어 있지만 스프링의 리플렉션 API를 이용해 제약조건을 우회해서 값을 넣어준다.
 
 자동와이어링은 적절히 사용하면 DI 관련 코드를 대폭 줄일 수 있어서 편리하다. 반면에 빈 설정정보를 보고 다른 빈과 의존관계가 어떻게 맺어져 있는지 한눈에 파악하기 힘들다는 단점도 있긴 하다.
+
+##### Compoenent를 이용한 자동 빈 등록
+@Component는 스프링이 어노테이션에 담긴 메타정보를 이용하기 시작했을 때 소개된 대표적인 어노테이션이다. @Component는 클래스에 부여된다. 어노테이션이 붙은 클래스는 빈 스캐너를 통해 자동으로 빈으로 등록된다. 또한 클래스명이 아닌 다른 이름으로 빈을 등록하고 싶다면 @Component("사용할 빈이름") 으로 어노테이션을 작성하면 된다.
+
+클래스 어노테이션 Component, Service, Repository, Controller 를 사용하면 @ComponentScan 어노테이션을 java.Config 클래스에 추가하여 탐색할 패키지 위치를 설정해야 한다.
+
+여러 개의 어노테이션에 공통적인 속성을 부여하려면 메타 어노테이션을 이용한다. 메타 어노테이션은 어노테이션의 정의에 부여된 어노테이션을 말한다.
+
+#####  메인 컨텍스트와 테스트 컨텍스트 분리
+테스트 오브젝트는 클래스 어노테이션을 붙이고 ComponentScan으로 자동등록할 수 있지만 그렇게 하지 않는 것이 좋다. 이유는 패키지도 따로 관리해야하고, Bean 어노테이션으로 빈으로 등록하여 빈의 설정정보를 드러내는 편이 좋다.
+
+##### @Import
+SQL 서비스는 그 자체로 독립적인 모듈처럼 취급하는 게 나아 보인다. SQL 서비스는 다른 애플리케이션에서도 사용될 수 있다.  분리하는 방법 자체는 간단하다 Configuration 클래스를 하나 더 만들어서 따로 관리하면 된다.
+
+DI 설정정보를 담은 클래스가 세 개가 됐다. 두 개는 애플리케이션 핵심 빈 정보를 담고 있고, 하나는 테스트와 관련된 것만 갖고 있다. 설정 클래스가 추가 됐으니, 또 테스트 코드 @ContextConfiguration의 classes 내용을 수정해야 할까?? 그래도 되지만 더 나은 방법이 있다.
+
+##### 프로파일
+테스트 환경과 운영환경에서 각기 다른 빈 정의가 필요한 경우가 종종 있다. mailSender처럼 테스트용, 운영용 둘 다 필요한 경우 DI과정에서 동일한 속성의 빈이 두개 이상이기 때문에 에러가 발생한다.
+
+##### @Profile과 ActiveProfiles
+스프링 3.1은 환경에 따라 빈 설정정보가 달라져야 하는 경우에 파일을 여러 개로 쪼개고 조합하는 등의 번거로운 방법 대신 간단히 설정정보를 구성할 수 있는 방법을 제공한다.
+```JAVA
+@Configuration
+@Profile("test")
+public class TestAppContextConfig {
+
+-------------------------------------------------
+
+@Configuration
+@Profile("production")
+public class ProductionAppContextConfig {
+
+-------------------------------------------------
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "practice.spring.toby.chapter7")	
+@Import({SqlServiceContextConfig.class, ProductionAppContextConfig.class, TestAppContextConfig.class})	
+public class applicationContextConfig {
+```
+
+이대로 테스트를 실행하게 되면 mailSender가 없다고 하여 실패하게 된다. 분명 TestApp, ProductionApp 모두 mailSender가 존재하는데 말이다. 이유는 TestApp, ProductionApp 두 클래스 모두 프로파일이 지정되어 있어서 현재 테스트 설정 가지고는 어느 것도 포함되지 않기 때문이다.
+
+@Profile이 붙은 설정 클래스는 @Import로 가져오든 ContextConfiguration에 직접 명시하든 상관없이 현재 컨테이너의 활성(active) 프로파일 목록에 자신의 프로파일 이름이 들어있지 않으면 무시한다.
+활성 프로파일이란 스프링 컨테이너를 실행할 때 추가로 지정해주는 속성인데 아직 테스트에 활성 프로파일을 지정한 적이 없으니 test 프로파일로 지정된 TestApp... 를 @Import로 포함하려고 해봤자 소용없다. 
+
+활성화 시키는 방법은 @ActiveProfiles 어노테이션을 사용하면 된다.
+``` JAVA
+@ContextConfiguration(classes = applicationContextConfig.class)
+@RunWith(SpringJUnit4ClassRunner.class)
+@Transactional
+@ActiveProfiles("test")	// test의 이름을 가진 profile을 활성화 시킨다.
+public class Chapter7UserDaoTest {
+```
+프로파일이 일종의 필터처럼 적용된다고 이해해도 좋다.
+
+##### 컨테이너의 빈 등록 정보 확인
+간단히 스프링 컨테이너에 등록된 빈 정보를 조회하는 방법을 살펴보자. 스프링의 컨테이너는 BeanFactory라는 인터페이스를 구현하고 있다. BeanFactory 의 구현 클래스 중 DefaultListableBeanFactory가 있는데 거의 대부분의 스프링 컨테이너는 이 클래스를 이용해 빈을 등록하고 관리한다. DefaultListableBeanFactory에는 getBeanDefinitionNames() 메서드가 있어서 컨테이너에 등록된 모든 빈 이름을 가져올 수 있고, 빈 이름을 이용해서 실제 빈과 빈 클래스 정보 등도 조회해볼 수 있다.

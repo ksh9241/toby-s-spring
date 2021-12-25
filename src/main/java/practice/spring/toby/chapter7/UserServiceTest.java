@@ -2,7 +2,21 @@ package practice.spring.toby.chapter7;
 
 import java.util.List;
 
-public class UserServiceTest {
+import org.springframework.mail.MailSender;
+
+public class UserServiceTest extends UserServiceImple{
+	
+	UserDao userDao;
+	MailSender mailSender;
+	
+	public void setUserDao(UserDao userDao) {
+		this.userDao = userDao;
+	}
+	
+	@Override
+	public void setMailSender(MailSender mailSender) {
+		this.mailSender = mailSender; 
+	}
 
 	public static class TestUserServiceImple extends UserServiceImple {
 		private String id = "4"; // 테스트 픽스처의 users(3)의 id값을 고정시켰다.

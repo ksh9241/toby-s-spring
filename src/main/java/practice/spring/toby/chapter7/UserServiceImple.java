@@ -12,7 +12,6 @@ import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.stereotype.Service;
 
-
 @Service
 public class UserServiceImple implements UserService{
 	

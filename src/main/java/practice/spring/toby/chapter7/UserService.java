@@ -2,11 +2,15 @@ package practice.spring.toby.chapter7;
 
 import java.util.List;
 
+import org.springframework.mail.MailSender;
 import org.springframework.transaction.annotation.Transactional;
 
 // <tx:method name = "*" />와 같은 설정 효과를 가져온다.
 @Transactional
 public interface UserService {
+	public void setUserDao (UserDao userDao);
+	public void setMailSender (MailSender mailSender);
+	
 	public void add(User user1);
 	public void deleteAll();
 	public void update(User user);

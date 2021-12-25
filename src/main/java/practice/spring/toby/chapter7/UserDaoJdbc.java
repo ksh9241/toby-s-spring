@@ -4,8 +4,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import javax.sql.DataSource;
 
@@ -13,9 +11,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
 
 import practice.spring.toby.chapter4.DuplicateUserIdException;
 
+@Repository
 public class UserDaoJdbc implements UserDao{
 
 	@Autowired
@@ -61,7 +61,7 @@ public class UserDaoJdbc implements UserDao{
 		return jdbcTemplate.queryForObject(sqlService.getSql("userGet"), new Object[] {id}, userMapper);
 	}
 	
-	public void deleteAll () {
+	public void deleteAll () { 
 		jdbcTemplate.update(sqlService.getSql("userDeleteAll"));
 	}
 	
