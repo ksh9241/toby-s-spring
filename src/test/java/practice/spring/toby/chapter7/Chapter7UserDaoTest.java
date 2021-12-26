@@ -13,6 +13,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 import practice.spring.toby.chapter7.Level;
 import practice.spring.toby.chapter7.User;
 import practice.spring.toby.chapter7.UserDao;
+import practice.spring.toby.chapter7.config.applicationContextConfig;
 
 @ContextConfiguration(classes = applicationContextConfig.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-//@Transactional
+@Transactional
+@ActiveProfiles("test")
 public class Chapter7UserDaoTest {
 	
 	public static final int MIN_LOGCOUNT_FOR_SILVER = 50;
@@ -34,6 +38,9 @@ public class Chapter7UserDaoTest {
 	
 	List<User> users;
 	
+	@Autowired
+	DefaultListableBeanFactory bf;
+	
 	@Before
 	public void setUp() {
 		users = Arrays.asList(
@@ -43,6 +50,15 @@ public class Chapter7UserDaoTest {
 				new User("4","4","4",Level.SILVER, 60, MIN_RECCOMEND_FOR_GOLD, "YES"),	
 				new User("5","5","5",Level.GOLD, 100, 100, "NO")	
 			);
+	}
+	
+	@Test
+	public void findAllBeanNames() {
+		System.out.println("============== findAllBeanNames Start =================");
+		for (String n : bf.getBeanDefinitionNames()) {
+			System.out.println(bf.getBean(n).getClass().getName());
+		}
+		System.out.println("============== findAllBeanNames End =================");
 	}
 	
 	@Test

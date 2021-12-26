@@ -516,3 +516,190 @@ tx:annotation-driven 은 @Transactional을 이용한 트랜잭션 AOP 기능을 
 자동와이어링 시 필드에 접근 제한자가 private인 것은 문제되지 않는다. 원래 자바 언어에서 private 필드에는 클래스 외부에서 값을 넣을 수 없게 되어 있지만 스프링의 리플렉션 API를 이용해 제약조건을 우회해서 값을 넣어준다.
 
 자동와이어링은 적절히 사용하면 DI 관련 코드를 대폭 줄일 수 있어서 편리하다. 반면에 빈 설정정보를 보고 다른 빈과 의존관계가 어떻게 맺어져 있는지 한눈에 파악하기 힘들다는 단점도 있긴 하다.
+
+##### Compoenent를 이용한 자동 빈 등록
+@Component는 스프링이 어노테이션에 담긴 메타정보를 이용하기 시작했을 때 소개된 대표적인 어노테이션이다. @Component는 클래스에 부여된다. 어노테이션이 붙은 클래스는 빈 스캐너를 통해 자동으로 빈으로 등록된다. 또한 클래스명이 아닌 다른 이름으로 빈을 등록하고 싶다면 @Component("사용할 빈이름") 으로 어노테이션을 작성하면 된다.
+
+클래스 어노테이션 Component, Service, Repository, Controller 를 사용하면 @ComponentScan 어노테이션을 java.Config 클래스에 추가하여 탐색할 패키지 위치를 설정해야 한다.
+
+여러 개의 어노테이션에 공통적인 속성을 부여하려면 메타 어노테이션을 이용한다. 메타 어노테이션은 어노테이션의 정의에 부여된 어노테이션을 말한다.
+
+#####  메인 컨텍스트와 테스트 컨텍스트 분리
+테스트 오브젝트는 클래스 어노테이션을 붙이고 ComponentScan으로 자동등록할 수 있지만 그렇게 하지 않는 것이 좋다. 이유는 패키지도 따로 관리해야하고, Bean 어노테이션으로 빈으로 등록하여 빈의 설정정보를 드러내는 편이 좋다.
+
+##### @Import
+SQL 서비스는 그 자체로 독립적인 모듈처럼 취급하는 게 나아 보인다. SQL 서비스는 다른 애플리케이션에서도 사용될 수 있다.  분리하는 방법 자체는 간단하다 Configuration 클래스를 하나 더 만들어서 따로 관리하면 된다.
+
+DI 설정정보를 담은 클래스가 세 개가 됐다. 두 개는 애플리케이션 핵심 빈 정보를 담고 있고, 하나는 테스트와 관련된 것만 갖고 있다. 설정 클래스가 추가 됐으니, 또 테스트 코드 @ContextConfiguration의 classes 내용을 수정해야 할까?? 그래도 되지만 더 나은 방법이 있다.
+
+##### 프로파일
+테스트 환경과 운영환경에서 각기 다른 빈 정의가 필요한 경우가 종종 있다. mailSender처럼 테스트용, 운영용 둘 다 필요한 경우 DI과정에서 동일한 속성의 빈이 두개 이상이기 때문에 에러가 발생한다.
+
+##### @Profile과 ActiveProfiles
+스프링 3.1은 환경에 따라 빈 설정정보가 달라져야 하는 경우에 파일을 여러 개로 쪼개고 조합하는 등의 번거로운 방법 대신 간단히 설정정보를 구성할 수 있는 방법을 제공한다.
+```JAVA
+@Configuration
+@Profile("test")
+public class TestAppContextConfig {
+
+-------------------------------------------------
+
+@Configuration
+@Profile("production")
+public class ProductionAppContextConfig {
+
+-------------------------------------------------
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "practice.spring.toby.chapter7")	
+@Import({SqlServiceContextConfig.class, ProductionAppContextConfig.class, TestAppContextConfig.class})	
+public class applicationContextConfig {
+```
+
+이대로 테스트를 실행하게 되면 mailSender가 없다고 하여 실패하게 된다. 분명 TestApp, ProductionApp 모두 mailSender가 존재하는데 말이다. 이유는 TestApp, ProductionApp 두 클래스 모두 프로파일이 지정되어 있어서 현재 테스트 설정 가지고는 어느 것도 포함되지 않기 때문이다.
+
+@Profile이 붙은 설정 클래스는 @Import로 가져오든 ContextConfiguration에 직접 명시하든 상관없이 현재 컨테이너의 활성(active) 프로파일 목록에 자신의 프로파일 이름이 들어있지 않으면 무시한다.
+활성 프로파일이란 스프링 컨테이너를 실행할 때 추가로 지정해주는 속성인데 아직 테스트에 활성 프로파일을 지정한 적이 없으니 test 프로파일로 지정된 TestApp... 를 @Import로 포함하려고 해봤자 소용없다. 
+
+활성화 시키는 방법은 @ActiveProfiles 어노테이션을 사용하면 된다.
+``` JAVA
+@ContextConfiguration(classes = applicationContextConfig.class)
+@RunWith(SpringJUnit4ClassRunner.class)
+@Transactional
+@ActiveProfiles("test")	// test의 이름을 가진 profile을 활성화 시킨다.
+public class Chapter7UserDaoTest {
+```
+프로파일이 일종의 필터처럼 적용된다고 이해해도 좋다.
+
+##### 컨테이너의 빈 등록 정보 확인
+간단히 스프링 컨테이너에 등록된 빈 정보를 조회하는 방법을 살펴보자. 스프링의 컨테이너는 BeanFactory라는 인터페이스를 구현하고 있다. BeanFactory 의 구현 클래스 중 DefaultListableBeanFactory가 있는데 거의 대부분의 스프링 컨테이너는 이 클래스를 이용해 빈을 등록하고 관리한다. DefaultListableBeanFactory에는 getBeanDefinitionNames() 메서드가 있어서 컨테이너에 등록된 모든 빈 이름을 가져올 수 있고, 빈 이름을 이용해서 실제 빈과 빈 클래스 정보 등도 조회해볼 수 있다.
+
+##### 중첩 클래스를 이용한 프로파일 적용
+프로파일이 지정된 독립된 설정 클래스의 구조는 그대로 유지한 채로 단지 소스코드의 위치만 통합하는 것이다. 스태틱 중첩 클래스를 이용하면 된다. 대신 각 프로파일 클래스에 빈 설정정보가 많다면 하나의 클래스에 중첩클래스로 모았을 때 전체 구조를 파악하기가 쉽지 않을 수도 있다.
+
+```JAVA
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "practice.spring.toby.chapter7")	// BeanFactoryPostProcessor구현체를 적용하여 @Componenet 를 포함한 하위 어노테이션 (클래스 생성 빈)을 찾을 패키지 범위 
+@Import({SqlServiceContextConfig.class}) // applicationContextConfig 안에 중첩클래스로 Profile을 생성했기 때문에 Import를 제거해도 된다.
+public class applicationContextConfig {
+
+@Configuration
+@Profile("production")
+public static class ProductionAppContextConfig {	
+}
+	
+@Configuration
+@Profile("test")
+public static class TestAppContextConfig {
+}
+```
+
+##### 프로퍼티 소스
+DB 드라이버 클래스나, 접속 URL, 로그인 계정 정보 등은 개발환경이나 테스트환경, 운영환경에 따라 달라진다. 운영환경이라면 JNDI를 이용해 서버가 제공하는 DataSource를 가져오거나 애플리케이션에 내장할 수 있는 DB 커넥션 풀을 이용할 필요가 있다. 문제는 SimpleDriverDataSource 오브젝트를 만든 뒤 DB 연결정보를 프로퍼티 값으로 넣어주는 부분이다. 적어도 DB 연결정보는 환경에 따라 다르게 설정될 수 있어야 한다. 그래서 이런 외부 서비스 연결에 필요한 정보는 자바 클래스에서 제거하고 손쉽게 편집할 수 있고 빌드 작업이 따로 필요없는 XML이나 프로퍼티 파일 같은 텍스트 파일에 저장해두는 편이 낫다.
+
+##### @PropertySource
+프로퍼티 파일의 확장자는 보통 properties이고, 내부에 키=값 형태로 프로퍼티를 정의한다.
+```JAVA
+db.driverClass=oracle.jdbc.driver.OracleDriver
+db.url=jdbc:oracle:thin:@localhost:1521:xe
+db.username=practice
+db.password=1234
+
+// Config 클래스에 어노테이션을 추가한다.
+@PropertySource("/chapter7/database.properties")
+```
+
+클래스에 @PropertySource로 등록한 리소스로부터 가져오는 프로퍼티 값은 컨테이너가 관리하는 Environment 타입의 환경 오브젝트에 저장된다. 환경 오브젝트는 빈처럼 어노테이션을 통해 필드로 주입받을 수 있다. Environment 오브젝트의 getProperty() 메서드는 프로퍼티 이름을 파라미터로 받아 스트링 타입의 프로퍼티 값을 돌려준다. 문제는 driverClass 프로퍼티다. driverClass 프로퍼티는 DB 연결 드라이버의 클래스로 클래스의 이름이 아니라 Class 타입의 클래스 오브젝트를 넘겨야 한다. 그래서 가져온 스트링 타입의 프로퍼티를 Class.forName() 메서드의 도움으로 Class타입으로 변환한 뒤 사용해야 한다.
+
+```JAVA
+@Autowired
+Environment env;
+	
+@Bean
+public DataSource dataSource () {
+	SimpleDriverDataSource dataSource = new SimpleDriverDataSource();
+	
+	try {
+		dataSource.setDriverClass((Class<? extends java.sql.Driver>)Class.forName(env.getProperty("db.driverClass")));
+	} catch (Exception e) {
+		throw new RuntimeException(e);
+	}
+	
+	dataSource.setUrl(env.getProperty("db.url"));
+	dataSource.setUsername(env.getProperty("db.username"));
+	dataSource.setPassword(env.getProperty("db.password"));
+	
+	return dataSource;
+}
+```
+
+##### PropertySourcePlaceholderConfigurer
+Environment 오브젝트 대신 프로퍼티 값을 직접 DI 받는 방법도 가능하다. dataSource 빈의 프로퍼티는 빈 오브젝트가 아니므로 @Autowired를 통한 의존성 주입이 되지 않는다. 대신 @Value를 사용하면 된다. 여기서는 프로퍼티 소스로부터 값을 주입받을 수 있게 치환자를 이용해보겠다. @Value 어노테이션을 이용해 프로퍼티 값을 필드에 주입하려면 특별한 빈을 하나 선언해줘야 한다. 
+
+@Value를 이용하면 dirverClass처럼 문자열을 그대로 사용하지 않고 타입 변환이 필요한 프로퍼티를 스프링이 알아서 처리해준다는 장점이 있다. 지저분한 리플렉션 API나 try/catch가 없어서 깔끔하다.
+
+```JAVA
+@Value("${db.driverClass}")
+Class<? extends java.sql.Driver> driverClass;
+	
+@Value("${db.url}")
+String url;
+	
+@Value("${db.username}")
+String username;
+
+@Value("${db.password}")
+String password;
+
+// @Value 어노테이션을 통한 프로퍼티 값을 필드에 주입할 때 필요한 빈
+@Bean
+public static PropertySourcesPlaceholderConfigurer placeholderConfigurer() {
+	return new PropertySourcesPlaceholderConfigurer();
+}
+
+@Bean
+public DataSource dataSource () {
+	SimpleDriverDataSource dataSource = new SimpleDriverDataSource();
+	
+	dataSource.setDriverClass(driverClass);
+	dataSource.setUrl(url);
+	dataSource.setUsername(username);
+	dataSource.setPassword(password);
+	
+	return dataSource;
+}
+```
+
+##### 빈 설정의 재사용과 @Enable*
+SqlServiceContextConfig는 SQL 서비스와 관련된 빈 설정정보가 여타 빈 설정정보와 성격이 다르다고 보기 때문에 분리했다. 그뿐 아니라 SQL 서비스를 라이브러리 모듈로 뽑아내서 독립적으로 관리하고, 여러 프로젝트에서 재사용되게 하려는 이유도 있다. 실전에서는 iBatis 같은 고급 SQL 매핑 기술을 활용해야 한다. OXM과 내장형 DB 등을 활용해 만든 SQL 서비스를 적용하려면 네 개의 빈 설정이 필요하다. 클래스와 인터페이스, 스키마 파일 등은 패키지를 독립적으로 바꾼 뒤에 jar파일로 묶어서 제공하면 되지만 빈 설정은 프로젝트마다 다시 해줘야 하는 번거로움이 있다. 다행히 SQL 서비스를 독립적인 자바 클래스로 만들어 두었기 때문에 Import(SQLServiceContextConfig.class) 만 추가해주면 된다.
+
+##### 빈 설정자
+applicationContextConfig에 SQL설정 정보를 반환하는 SqlMapConfig 인터페이스를 구현하였다. 이렇게 처리하게 되면 재정의하는 config 클래스를 추가할 필요도 없고, 빈으로 만들기 위해 sqlMapConfig() 메서드를 넣을 필요도 없다. 코드는 간결해지고 애플리케이션의 빈 관련 설정은 applicationContextConfig로 모두 통합될 것이다.
+
+```JAVA
+// SQL 매핑파일의 리소스를 돌려주는 간단한 메서드를 추가하여 의존성을 제거했다.
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "practice.spring.toby.chapter7")	
+@Import({SqlServiceContextConfig.class})
+@PropertySource("/chapter7/database.properties")
+public class applicationContextConfig implements SqlMapConfig{
+
+@Override
+	public Resource getSqlMapResource() {
+		return new ClassPathResource("/chapter7/sqlmap.xml");
+	}
+}
+
+@Bean
+public SqlService sqlService () {
+	OxmSqlService sqlService = new OxmSqlService();
+	sqlService.setUnmarshaller(unmarshaller());
+	sqlService.setSqlRegistry(sqlRegistry());
+	sqlService.setSqlmap(sqlConfig.getSqlMapResource());
+	
+	return sqlService;
+}
+
+```

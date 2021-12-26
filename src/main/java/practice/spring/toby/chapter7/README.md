@@ -573,3 +573,133 @@ public class Chapter7UserDaoTest {
 
 ##### 컨테이너의 빈 등록 정보 확인
 간단히 스프링 컨테이너에 등록된 빈 정보를 조회하는 방법을 살펴보자. 스프링의 컨테이너는 BeanFactory라는 인터페이스를 구현하고 있다. BeanFactory 의 구현 클래스 중 DefaultListableBeanFactory가 있는데 거의 대부분의 스프링 컨테이너는 이 클래스를 이용해 빈을 등록하고 관리한다. DefaultListableBeanFactory에는 getBeanDefinitionNames() 메서드가 있어서 컨테이너에 등록된 모든 빈 이름을 가져올 수 있고, 빈 이름을 이용해서 실제 빈과 빈 클래스 정보 등도 조회해볼 수 있다.
+
+##### 중첩 클래스를 이용한 프로파일 적용
+프로파일이 지정된 독립된 설정 클래스의 구조는 그대로 유지한 채로 단지 소스코드의 위치만 통합하는 것이다. 스태틱 중첩 클래스를 이용하면 된다. 대신 각 프로파일 클래스에 빈 설정정보가 많다면 하나의 클래스에 중첩클래스로 모았을 때 전체 구조를 파악하기가 쉽지 않을 수도 있다.
+
+```JAVA
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "practice.spring.toby.chapter7")	// BeanFactoryPostProcessor구현체를 적용하여 @Componenet 를 포함한 하위 어노테이션 (클래스 생성 빈)을 찾을 패키지 범위 
+@Import({SqlServiceContextConfig.class}) // applicationContextConfig 안에 중첩클래스로 Profile을 생성했기 때문에 Import를 제거해도 된다.
+public class applicationContextConfig {
+
+@Configuration
+@Profile("production")
+public static class ProductionAppContextConfig {	
+}
+	
+@Configuration
+@Profile("test")
+public static class TestAppContextConfig {
+}
+```
+
+##### 프로퍼티 소스
+DB 드라이버 클래스나, 접속 URL, 로그인 계정 정보 등은 개발환경이나 테스트환경, 운영환경에 따라 달라진다. 운영환경이라면 JNDI를 이용해 서버가 제공하는 DataSource를 가져오거나 애플리케이션에 내장할 수 있는 DB 커넥션 풀을 이용할 필요가 있다. 문제는 SimpleDriverDataSource 오브젝트를 만든 뒤 DB 연결정보를 프로퍼티 값으로 넣어주는 부분이다. 적어도 DB 연결정보는 환경에 따라 다르게 설정될 수 있어야 한다. 그래서 이런 외부 서비스 연결에 필요한 정보는 자바 클래스에서 제거하고 손쉽게 편집할 수 있고 빌드 작업이 따로 필요없는 XML이나 프로퍼티 파일 같은 텍스트 파일에 저장해두는 편이 낫다.
+
+##### @PropertySource
+프로퍼티 파일의 확장자는 보통 properties이고, 내부에 키=값 형태로 프로퍼티를 정의한다.
+```JAVA
+db.driverClass=oracle.jdbc.driver.OracleDriver
+db.url=jdbc:oracle:thin:@localhost:1521:xe
+db.username=practice
+db.password=1234
+
+// Config 클래스에 어노테이션을 추가한다.
+@PropertySource("/chapter7/database.properties")
+```
+
+클래스에 @PropertySource로 등록한 리소스로부터 가져오는 프로퍼티 값은 컨테이너가 관리하는 Environment 타입의 환경 오브젝트에 저장된다. 환경 오브젝트는 빈처럼 어노테이션을 통해 필드로 주입받을 수 있다. Environment 오브젝트의 getProperty() 메서드는 프로퍼티 이름을 파라미터로 받아 스트링 타입의 프로퍼티 값을 돌려준다. 문제는 driverClass 프로퍼티다. driverClass 프로퍼티는 DB 연결 드라이버의 클래스로 클래스의 이름이 아니라 Class 타입의 클래스 오브젝트를 넘겨야 한다. 그래서 가져온 스트링 타입의 프로퍼티를 Class.forName() 메서드의 도움으로 Class타입으로 변환한 뒤 사용해야 한다.
+
+```JAVA
+@Autowired
+Environment env;
+	
+@Bean
+public DataSource dataSource () {
+	SimpleDriverDataSource dataSource = new SimpleDriverDataSource();
+	
+	try {
+		dataSource.setDriverClass((Class<? extends java.sql.Driver>)Class.forName(env.getProperty("db.driverClass")));
+	} catch (Exception e) {
+		throw new RuntimeException(e);
+	}
+	
+	dataSource.setUrl(env.getProperty("db.url"));
+	dataSource.setUsername(env.getProperty("db.username"));
+	dataSource.setPassword(env.getProperty("db.password"));
+	
+	return dataSource;
+}
+```
+
+##### PropertySourcePlaceholderConfigurer
+Environment 오브젝트 대신 프로퍼티 값을 직접 DI 받는 방법도 가능하다. dataSource 빈의 프로퍼티는 빈 오브젝트가 아니므로 @Autowired를 통한 의존성 주입이 되지 않는다. 대신 @Value를 사용하면 된다. 여기서는 프로퍼티 소스로부터 값을 주입받을 수 있게 치환자를 이용해보겠다. @Value 어노테이션을 이용해 프로퍼티 값을 필드에 주입하려면 특별한 빈을 하나 선언해줘야 한다. 
+
+@Value를 이용하면 dirverClass처럼 문자열을 그대로 사용하지 않고 타입 변환이 필요한 프로퍼티를 스프링이 알아서 처리해준다는 장점이 있다. 지저분한 리플렉션 API나 try/catch가 없어서 깔끔하다.
+
+```JAVA
+@Value("${db.driverClass}")
+Class<? extends java.sql.Driver> driverClass;
+	
+@Value("${db.url}")
+String url;
+	
+@Value("${db.username}")
+String username;
+
+@Value("${db.password}")
+String password;
+
+// @Value 어노테이션을 통한 프로퍼티 값을 필드에 주입할 때 필요한 빈
+@Bean
+public static PropertySourcesPlaceholderConfigurer placeholderConfigurer() {
+	return new PropertySourcesPlaceholderConfigurer();
+}
+
+@Bean
+public DataSource dataSource () {
+	SimpleDriverDataSource dataSource = new SimpleDriverDataSource();
+	
+	dataSource.setDriverClass(driverClass);
+	dataSource.setUrl(url);
+	dataSource.setUsername(username);
+	dataSource.setPassword(password);
+	
+	return dataSource;
+}
+```
+
+##### 빈 설정의 재사용과 @Enable*
+SqlServiceContextConfig는 SQL 서비스와 관련된 빈 설정정보가 여타 빈 설정정보와 성격이 다르다고 보기 때문에 분리했다. 그뿐 아니라 SQL 서비스를 라이브러리 모듈로 뽑아내서 독립적으로 관리하고, 여러 프로젝트에서 재사용되게 하려는 이유도 있다. 실전에서는 iBatis 같은 고급 SQL 매핑 기술을 활용해야 한다. OXM과 내장형 DB 등을 활용해 만든 SQL 서비스를 적용하려면 네 개의 빈 설정이 필요하다. 클래스와 인터페이스, 스키마 파일 등은 패키지를 독립적으로 바꾼 뒤에 jar파일로 묶어서 제공하면 되지만 빈 설정은 프로젝트마다 다시 해줘야 하는 번거로움이 있다. 다행히 SQL 서비스를 독립적인 자바 클래스로 만들어 두었기 때문에 Import(SQLServiceContextConfig.class) 만 추가해주면 된다.
+
+##### 빈 설정자
+applicationContextConfig에 SQL설정 정보를 반환하는 SqlMapConfig 인터페이스를 구현하였다. 이렇게 처리하게 되면 재정의하는 config 클래스를 추가할 필요도 없고, 빈으로 만들기 위해 sqlMapConfig() 메서드를 넣을 필요도 없다. 코드는 간결해지고 애플리케이션의 빈 관련 설정은 applicationContextConfig로 모두 통합될 것이다.
+
+```JAVA
+// SQL 매핑파일의 리소스를 돌려주는 간단한 메서드를 추가하여 의존성을 제거했다.
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "practice.spring.toby.chapter7")	
+@Import({SqlServiceContextConfig.class})
+@PropertySource("/chapter7/database.properties")
+public class applicationContextConfig implements SqlMapConfig{
+
+@Override
+	public Resource getSqlMapResource() {
+		return new ClassPathResource("/chapter7/sqlmap.xml");
+	}
+}
+
+@Bean
+public SqlService sqlService () {
+	OxmSqlService sqlService = new OxmSqlService();
+	sqlService.setUnmarshaller(unmarshaller());
+	sqlService.setSqlRegistry(sqlRegistry());
+	sqlService.setSqlmap(sqlConfig.getSqlMapResource());
+	
+	return sqlService;
+}
+
+```
