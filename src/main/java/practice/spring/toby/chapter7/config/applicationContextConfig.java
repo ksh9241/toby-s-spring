@@ -29,8 +29,8 @@ import practice.spring.toby.chapter7.UserServiceTest;
 @Configuration
 @EnableTransactionManagement
 @ComponentScan(basePackages = "practice.spring.toby.chapter7")	// BeanFactoryPostProcessor구현체를 적용하여 @Componenet 를 포함한 하위 어노테이션 (클래스 생성 빈)을 찾을 패키지 범위 
-@Import({SqlServiceContextConfig.class})	// 해당 클래스를 가져온다.
 @PropertySource("/chapter7/database.properties")
+@EnableSqlService		// 어노테이션 인터페이스를 만들어서 사용한다.
 public class applicationContextConfig implements SqlMapConfig{
 	
 	// 클래스를 빈으로 만든 뒤 Autowired로 의존성 주입하였다. 기존 Bean으로 만들었던 부분은 제거하였다.
