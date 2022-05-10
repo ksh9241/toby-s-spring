@@ -11,7 +11,9 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.context.support.GenericXmlApplicationContext;
 import org.springframework.context.support.StaticApplicationContext;
 
 
@@ -83,5 +85,41 @@ public class HelloTest {
 		hello.print();
 		
 		assertThat(ac.getBean("printer").toString(), is("Hello Spring"));
+	}
+	
+	@Test
+	@AdviceName("XML을 사용한 메타정보2")
+	public void GenericXmlApplicationContextTest() {
+		GenericXmlApplicationContext ac = 
+				new GenericXmlApplicationContext("/ver2Chapter1/StringPrinter.xml");
+		
+		Hello hello = ac.getBean("hello", Hello.class);
+		hello.print();
+		
+		assertThat(ac.getBean("printer").toString(), is("Hello Spring"));
+	}
+	
+	@Test
+	@AdviceName("트리구조 컨텍스트")
+	/**
+	 * 트리구조 컨텍스트는 오브젝트 상속과 매우 유사하다.
+	 * 생성하는 객체의 빈을 먼저 참조하고 자신의 컨텍스트에 빈이 존재하지 않으면 부모 컨텍스트의 빈을 참조하여 존재 할 경우 반환한다.
+	 * */
+	public void TreeContextTest() {
+		String basePath = "/ver2Chapter1/";
+		ApplicationContext parent = new GenericXmlApplicationContext(basePath + "parentContext.xml");
+		
+		GenericApplicationContext child = new GenericApplicationContext(parent);
+		XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(child);
+		reader.loadBeanDefinitions(basePath + "childContext.xml");
+		
+		child.refresh();
+		
+		Printer printer = child.getBean("printer", Printer.class); // 자칙 XML에 존재하지 않는 printer 빈을 부모 XML에서 가져옴
+		assertNotNull(printer);
+
+		Hello hello = child.getBean("hello", Hello.class); // 자식 XML에 존재하는 hello빈을 가져와서 name은 Child가 됨.
+		hello.print();
+		assertThat(printer.toString(), is("Hello Child"));
 	}
 }
