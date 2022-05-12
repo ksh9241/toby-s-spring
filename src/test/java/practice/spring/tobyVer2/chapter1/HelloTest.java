@@ -1,6 +1,8 @@
 package practice.spring.tobyVer2.chapter1;
 
 import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -12,6 +14,7 @@ import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.context.support.GenericXmlApplicationContext;
 import org.springframework.context.support.StaticApplicationContext;
@@ -121,5 +124,38 @@ public class HelloTest {
 		Hello hello = child.getBean("hello", Hello.class); // 자식 XML에 존재하는 hello빈을 가져와서 name은 Child가 됨.
 		hello.print();
 		assertThat(printer.toString(), is("Hello Child"));
+	}
+	
+	@Test
+	@AdviceName("스테레오타입 빈 생성")
+	public void AnnotationConfigApplicationContextTest() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext("practice.spring.tobyVer2.chapter1"); // 스테레오타입 어노테이션이 붙은 클래스를 스캔할 패키지 위치
+		AnnotatedHello hello = ctx.getBean("myAnnotatedHello", AnnotatedHello.class); // 빈 이름은 클래스명 첫글자만 소문자로 변환됨 (Default) 
+		
+		assertNotNull(hello);
+	}
+	
+	@Test
+	@AdviceName("Configuration 클래스를 이용한 테스트")
+	public void ConfigurationAnnotationTest() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(AnnotatedHelloConfig.class);
+		AnnotatedHelloConfig hello = ctx.getBean("annotatedHelloConfig", AnnotatedHelloConfig.class);
+		
+		AnnotatedHello childHello = hello.annotatedHello();
+		if (childHello instanceof AnnotatedHello) {
+			System.out.println("맞음");
+		}
+		assertNotNull(hello);
+	}
+	
+	@Test
+	@AdviceName("빈 싱글톤 테스트")
+	public void singletonTest() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(HelloConfig.class);
+		HelloConfig config = ctx.getBean(HelloConfig.class);
+		Hello hello1 = config.hello();
+		Hello hello2 = config.hello2();
+		
+		assertEquals(hello1.printer, hello2.printer); // 싱글톤 객체이기 때문에 New생성을 통한 printer 오브젝트가 동일하다.
 	}
 }
