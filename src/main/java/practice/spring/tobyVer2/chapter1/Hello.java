@@ -1,7 +1,7 @@
 package practice.spring.tobyVer2.chapter1;
 
 public class Hello {
-
+	
 	String name;
 	Printer printer;
 	

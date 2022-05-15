@@ -301,3 +301,150 @@ getBean("빈 이름") 은 기본적으로 Object 타입으로 리턴한다. 따�
 @Configuration 이 붙지 않은 클래스의 @Bean 메서드에서는 싱글톤으로 오브젝트가 관리되지 않기 때문에 사용하면 안된다는 사실을 주의해야 한다.
 
 #### 1.2.4 프로퍼티 값 설정 방법
+보통 싱글톤은 동시성 문제 때문에 필드 값을 함부로 수정하지 않는다. 대개는 상태가 없는 방식으로 만들기 때문에 필드에 있는 값은 읽기전용인 경우가 대부분이다.
+
+##### 메타정보 종류에 따른 값 설정 방법
+값을 넣는 방법도 빈 등록 방법과 마찬가지로 네 가지로 구분해서 볼 수 있다.
+
+- XML : <property>와 전용 태그
+
+ref 어트리뷰트를 이용해 다른 빈의 아이디를 지정한다. 만약 value 어트리뷰트를 사용한다면 런타임 시 주입할 값으로 인식한다.
+
+
+- 어노테이션 : @Value
+
+빈이 사용해야 할 단순한 값이나 오브젝트를 코드에 담지 않고 설정을 통해 런타임시 주입해주는 이유
+
+빈 의존관계는 아니지만 어떤 값을 외부에서 주입해야 하는 용도는 두 가지가 있다.
+
+1. 환경에 따라 매번 달라질 수 있는 값으로 대표적으로DataSource 타입의 빈에 제공하는 DriverClass, userName, password, URL이 있다.
+
+2. 클래스의 필드에 초기값을 설정해두고 대개는 그 값을 사용하지만 특별한 경우 초기값 대신 다른 값을 지정하고 싶을 경우가 있다.
+
+```JAVA
+public class Test {
+/**
+ 인스턴스 값 초기화와 @Value의 차이점
+ @Value 어노테이션은 스프링 컨테이너가 참조하는 정보이지 그 자체로 클래스의 필드에 값을 넣어주는 기능이 있는 것은 아니다.
+ 따라서 테스트 코드와 같이 컨테이너 밖에서 사용된다면 @Value 어노테이션은 무시된다.
+ @Value로 값을 설정해준다는 것은 자바 코드와 컨테이너가 런타임 시에 주입하는 정보를 분리하겠다는 의미이고, 외부로부터의 주입을 통한 초기화가 반드시 필요하다고 이해할 수 있다.
+*/
+	String a = "초기화";
+	
+	@Value("초기화")
+	String b;
+
+	// username속성이 정의된 database.properties 파일의 XML에서 지정해둬야 한다.
+	@Value("${database.username}")
+	String userName;
+}
+```
+
+- 자바코드 : @Value
+
+클래스 자체가 메타정보이기 때문에, 설정을 변경해야 할 때마다 코드를 수정하고 재컴파일하는 게 문제가 되지 않는다. 하지만 환경에 종속적인 정보는 역시 환경정보나 프로퍼티 파일에서 가져오는 것이 바람직하다.
+
+
+##### PropertyEditor와 ConversionService
+XML의 value 어트리뷰트나 @Value의 엘리먼트는 모두 텍스트 문자로 작성된다. 타입이 String이라면 상관없지만 그 외의 타입인 경우라면 타입을 변경하는 과정이 필요하다.
+
+스프링은 두 가지 타입 변환 서비스를 제공한다. 디폴트로 사용되는 타입 변환기는 PropertyEditor라는 java.beans의 인터페이스를 구현한 것이다.
+
+- 기본타입
+
+스프링의 내장 프로퍼티 에디터가 변환을 지원하는 기본 타입이다.
+
+[boolean, Boolean, byte, Byte, short, Short, int, Integer, long, Long, float, Float, double, Double, BigDecimal, BigInteger, char, Character, String]
+
+int 같은 기본타입은 물론이고 Integer같은 오브젝트 타입도 함께  지원한다.
+
+
+- 배열
+
+값을 콤마로 구분해서 넣어주면 배열 형태로 변환한다.
+
+@Value("1,2,3,4") int[] arr;
+
+- 기타
+	- charset : UTF-8, ISO-8895-1 과 같은 값을 Charset 타입으로 만들어준다.
+	- Class : JDBC 드라이버 클래스를 선언할 때 자주 사용했던 타입이다.
+	- Currency : ISO 4217 코드를 따르는 Currency타입으로 변환해준다.
+	- File : File 타입으로 변환해준다. file:, classpath: 와 같은 접두어를 사용할 수 있다.
+	- InputStream : InputStream 타입으로 변환해준다.
+	- Pattern : Pattern 타입으로 변환해준다.
+	- Resource : 스프링의 리소스 타입으로 변환해준다. 배열도 지원
+	- Timezone : Timezone으로 변환해준다.
+	- URI, URL : URI 또는 URL로 변환해준다.
+
+각 타입의 프로퍼티 에디터를 찾는 방법은 타입 이름 뒤에 Editor를 붙여주면 된다.
+
+스프링 3.0 부터는 PropertyEditor 대신 사용할 수 있는 ConversionService를 지원하기 시작했다.
+ConversionService 느 스프링이 직접 제공하는 타입 변환 API다. 멀티스레드 환경에서 공유해 사용될 수 있다.
+
+
+##### Null과 빈 문자열
+스트링 타입에서 Null과 빈문자열은 비슷한 용도로 사용되기는 하지만 동일하지 않기 때문에 구분해서 사용해야 한다.
+일반적인 경우에는 null을 명시적으로 선언할 필요는 없다.
+
+```JAVA
+<property name="name" value="" />
+<property name="name"><null /><property/> <!-- 널 태그를 사용한다. -->
+```
+
+##### 프로퍼티 파일을 이용한 값 설정
+XML에서 일부 설정정보를 별도의 파일로 분리해두면 유용할 때가 있다. 서버환경에 종속적인 정보가 있다면, 이를 애플리케이션의 구성정보에서 분리하기 위해서다. 변경되는 이유와 시점이 다르다면 분리하는 것이 객체지향 설계의 기본 원칙이다. 환경에 따라 자주 변경될 수 있는 내용은 프로퍼티 파일로 분리하는 것이 가장 깔끔하다.
+
+또 한가지 장점은 @Value를 효과적으로 사용할 수 있다. @Value는 소스코드 안에 포함되는 어노테이션이어서 값이 변경되면 매번 새로 컴파일해야 한다. 하지만 프로퍼티 파일의 내용을 참조하게 하면 소스코드 수정 없이 @Value를 통해 프로퍼티에 값을 변경할 수 있다.
+
+```JAVA
+<!-- before -->
+<bean id="test" class="...DataSource">
+	<property name="driverClass" value="com.mysql.jdbc.Driver" />
+</bean>
+
+<!-- after -->
+<bean id="test" class="...DataSource">
+	<property name="driverClass" value="${db.driverClass}" />
+</bean>
+
+<!-- database.properties 파일 -->
+db.driverClass=com.mysql.jdbc.Driver
+
+/**
+사용하기 위해서는 아래 태그를 추가해줘야 한다.
+<context:property-placeholder location="classpath:database.properties" />
+*/
+```
+
+이런 동작원리는 <context:property-placeholder> 태그에 의해 자동으로 등록되는 PropertyPlaceHolderConfigurer 빈이 담당한다. 이 빈은 빈 팩토리 후처리기다. 빈 팩토리 후처리기는 빈 설정 메타정보가 모두 준비됐을 때 빈 메타정보 자체를 조작하기 위해 사용된다.
+
+- 능동변환 :SpEL
+
+프로퍼티 대체위치를 설정해두고 빈 팩토리 후처리기에서 바꿔주기를 기다리는 수동적인 위의 방법과 달리 다른 빈 오브젝트에 직접 접근할 수 있는 표현식을 이용해 원하는 프로퍼티 값을 능동적으로 가져오는 방법이다.
+
+```JAVA
+<!-- before -->
+<bean id="test" class="...DataSource">
+	<property name="driverClass" value="com.mysql.jdbc.Driver" />
+</bean>
+
+<!-- after -->
+
+<!-- 
+빈 팩토리 후처리기 처럼 동작해서 처리하는 것이 아닌 단순 프로퍼티 파일의 내용을 담은 properties 타입 빈을 만들어 줄 뿐이다. 
+properties 는 Map 인터페이스를 구현한 클래스이다.
+-->
+<util:properties id="dbprops" location="classpath:database.properties" /> 
+
+<bean id="test" class="...DataSource">
+	<property name="driverClass" value="#{dbprops['db.driverClass']}" />
+</bean>
+
+<!-- database.properties 파일 -->
+db.driverClass=com.mysql.jdbc.Driver
+```
+
+#### 1.2.5 컨테이너가 자동등록하는 빈
+
+##### ApplicationContext, BeanFactory
+스프링에서는 컨테이너 자신을 빈으로 등록해두고 필요하면 일반 빈에서 DI 받아서 사용할 수 있다.
