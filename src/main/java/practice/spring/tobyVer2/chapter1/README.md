@@ -1,6 +1,6 @@
 # 1장. IoC 컨테이너와 DI
 
-### IoC 컨테이너 : 빈 팩토리와 애플리케이션 컨텍스트
+### 1.1 IoC 컨테이너 : 빈 팩토리와 애플리케이션 컨텍스트
 스프링에선 IoC를 담당하는 컨테이너를 빈 팩토리 또는 애플리케이션 컨텍스트라고 부르기도 한다. 오브젝트 생성과 오브젝트 사이의 런타임 관계를 설정하는 DI 관점으로 볼 떄는 컨테이너를 빈 팩토리라고 한다.
 
 #### 1.1.1 IoC 컨테이너를 이용해 애플리케이션 만들기
@@ -448,3 +448,34 @@ db.driverClass=com.mysql.jdbc.Driver
 
 ##### ApplicationContext, BeanFactory
 스프링에서는 컨테이너 자신을 빈으로 등록해두고 필요하면 일반 빈에서 DI 받아서 사용할 수 있다.
+어노테이션을 이용한 의존관계 설정을 사용하지 않는다면 @Autowired를 사용할 수 없다. 이때는 ApplicationContextAware라는 특별한 인터페이스를 구현해주면된다.
+ApplicationContextAware의 setApplicationContext() 메서드가 있어서 스프링이 애플리케이션 컨텍스트 오브젝트를 DI 해줄 수 있다.
+
+
+컨텍스트 내부에 만들어진 빈 팩토리 오브젝트를 직접 사용하고 싶다면 BeanFactory 타입으로 DI 해줄 필요가 있다. 이때는 DefaultListableBeanFactory 오브젝트로 캐스팅해서 사용한다. 빈 팩토리는 ApplicationContext 구현 클래스 안에 내부적으로 따로 생성해두기 때문에 BeanFactory로 DI 받는 오브젝트는 ApplicationContext로 가져오는 오브젝트와 다르다는 점을 기억해두자.
+BeanFactory를 어노테이션 없이 가져오려면 BeanFactoryAware 인터페이스를 구현하면 된다.
+
+##### ResourceLoader, ApplicationEventPublisher
+스프링 컨테이너는 ResourceLoader 이기도 하다. 따라서 서버환경에서 다양한 Resource를 로딩할 수 있는 기능을 제공한다.
+
+만약 코드를 통해 서블릿 컨텍스트의 리소스를 읽어오고 싶다면 컨테이너를 ResourceLoader 타입으로 DI 받아서 활용하면 된다.
+
+웹 애플리케이션으로 배포된 스프링은 기본적으로 서블릿 컨텍스트의 리소스를 이용할 수 있도록 ResourceLoader가 구성된다.
+
+ApplicationContext 인터페이스는 이미 ResourceLoader를 상속하고 있다.
+
+
+##### systemProperties, systemEnvironment
+스프링 컨테이너가 직접 등록하는 빈 중에서 타입이 아니라 이름을 통해 접근할 수 있는 두 가지 빈이 있다. systemProperties, systemEnvironment 빈이다. 각각 Properties 타입과 Map 타입이기 때문에 타입에 의한 접근 방법은 적절치 않다.
+
+systemProperties 빈은 System.getProperties() 메서드가 돌려주는 Properties타입의 오브젝트를 읽기전용으로 접근할 수 있게 만든 빈 오브젝트다. JVM이 생성해주는 시스템 프로퍼티 값을 읽을 수 있게 해준다.
+
+그런데 systemProperties, systemEnvironment 라는 이름의 빈을 직접 정의해두면 스프링이 이 빈들을 자동으로 추가해주지 못하기 때문에 주의해야 하며, 사용금지 목록에 올려두자.
+
+
+### 1.3 프로토 타입과 스코프
+기본적으로 스프링의 빈은 싱글톤으로 만들어진다. 하나의 빈 오브젝트에 여러 스레드가 접근하기 때문에 상태 값을 인스턴스 변수에 저장해두고 사용할 수 없다. 따라서 싱글톤의 필드에는 의존관계에 있는 빈에 대한 레퍼런스나 읽기전용 값만 저장해두고 오브젝트의 변하는 상태를 저장하는 인스턴스 변수는 두지 않는다.
+
+그런데 때로는 빈을 싱글톤이 아닌 다른 방법으로 만들어 사용해야 할 때가 있다. 하나의 빈 설정으로 어려 개의 오브젝트를 만들어서 사용하는 경우다. 이때는 프로토타입 빈과 스코프 빈을 생각하자.
+
+#### 1.3.1 프로토타입 스코프
