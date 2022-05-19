@@ -698,3 +698,75 @@ DataSource나 DataSourceTransactionManager는 DAO나 Service처럼 스프링 컨
 - 컨테이너 인프라 빈
 
 AOP에서 사용하던 DefaultAdvisorAutoProxyCreator는 Advisor 타입 빈의 포인트컷 정보를 이용해서 타깃 빈을 선정하고, 선정된 빈을 프록시로 바꿔주는 기능을 담당한다. 이런 빈은 스프링 컨테이너의 기능에 관여한다. 이렇게 스프링 컨테이너의 기능을 확장해서 빈의 등록과 생성, 관계설정, 초기화 등의 작업에 참여하는 빈을 컨테이너 인프라스트럭처 빈이라고 부른다.
+
+##### 컨테이너 인프라 빈과 전용 태그
+컨테이너 인프라 빈은 애플리케이션 로직 빈이나 애플리케이션 인프라 빈과는 성격이 크게 다르다. 스프링은 빈을 개발자가 XML에 직접 등록하는 대신 전용 태그를 사용해 간접적으로 등록하는 방법을 권장한다.
+
+<context:annotation-config> 태그는 context 네임스페이스의 태그를 처리하는 핸들러를 통해 특정 빈이 등록되게 해줄 뿐이다. 이 과정에서 등록되는 빈이 스프링 컨테이너를 확장해서 빈의 등록과 관계 설정, 후처리 등에 새로운 기능을 부여하는 컨테이너 인프라다. 컨테이너 인프라 빈은 일반 애플리케이션 개발자가 직접 개발해서 추가할 일이 거의 없고, 일정한 설정 패턴이 있기 때문에 전용 태그로 등록하고 어트리뷰트를 통해 필요한 속성만 부여하도록 하는 것이 일반적이다.
+
+
+##### 빈의 역할
+스프링의 빈을 역할에 따라 구분한다면 세 가지로 나눌 수 있다.
+
+- ROLE_APPLICATION
+	- 애플리케이션 로직 빈과 애플리케이션 인프라 빈처럼 애플리케이션이 동작하는 중에 사용되는 빈을 말한다. 애플리케이션 구성 빈이라고 볼 수 있다.
+
+- ROLE_SUPPORT
+	- 복합 구조의 빈을 정의할 때 보조적으로 사용되는 빈의 역할을 지정하려고 정의된 것이다. 실제로는 거의 사용하지 않으니 무시해도 좋다.
+
+- ROLE_INFRASTRUCTURE
+	- <context:annotation-config> 같은 전용 태그에 의해 등록되는 컨테이너 인프라 빈들이 바로 이 ROLE_INFRASTRUCTURE 값을 갖고 있다.
+
+스프링 3.1부터는 개발자가 빈을 정의할 때 이 역할 값을 직접 지정할 수 있도록 @Role이라는 어노테이션이 도입됐다.
+
+
+#### 1.5.2 컨테이너 인프라 빈을 위한 자바 코드 메타정보
+
+##### IoC/DI 설정 방법의 발전
+|버전|애플리케이션 로직 빈|애플리케이션 인프라 빈|컨테이너 인프라 빈|
+|-----|-------|-------|-------|
+|스프링 1.x|<bean>|<bean>|<bean>|
+|스프링 2.0|<bean>|<bean>|전용태그|
+|스프링 2.5|<bean>, 빈 스캔|<bean>|전용태그|
+|스프링 3.0|<bean>, 빈 스캔, 자바 코드|<bean>, 자바 코드|전용태그|
+|스프링 3.1|<bean>, 빈 스캔, 자바 코드|<bean>, 자바 코드|전용태그, 자바 코드|
+
+##### 자바코드를 이용한 컨테이너 인프라 빈 등록
+- @ComponentScan
+	- @Configuration 이 붙은 클래스에 @ComponentScan 어노테이션을 추가하면 XML에서 <context:component-scan>을 사용한 것처럼 스테레오타입 어노테이션이 붙은 빈을 자동으로 스캔해서 등록해준다.
+
+```JAVA
+@Configuration
+@ComponentScan("패키지경로")	// 스캐너 패키지와 하위 클래스 중에서 @Component 같은 스테레오 타입 어노테이션이 붙은 클래스를 모두 찾아서 빈으로 등록한다.
+public class AppConfig {
+}
+
+
+/** 
+패키지 이름 대신 마커 클래스나 인터페이스 사용 방법
+
+마커를 통한 패키지 지정 방식 장점
+1. 패키지 이름을 텍스트로 넣으면 오타 발생 가능성 있음.
+2. 리팩토링으로 패키지를 옮기거나 패키지 이름이 바뀌는 경우 텍스트일 때는 일일이 수정해야 함.
+3. 패키지를 여러 개 사용한다면 읽기도 불편
+*/
+public interface ServiceMarker {}
+
+@Configuration
+//@ComponentScan(basePackageClasses = Printer.class, excludeFilters = @Filter(Controller.class)) // 어노테이션 제외 방식	
+@ComponentScan(basePackageClasses = Printer.class, excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, value=HelloConfig.class))	// 클래스 제외 방식
+public class AppConfig {
+}
+
+```
+
+
+- @Import
+	- @Import 는 다른 @Configuration 클래스를 빈 메타정보에 추가할 때 사용한다.
+
+```JAVA
+@Configuration
+@Import(DataSourceConfig.class)	// 다른 빈 메타정보를 추가할 때 사용
+public class AppConfig {
+}
+```
