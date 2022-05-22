@@ -770,3 +770,265 @@ public class AppConfig {
 public class AppConfig {
 }
 ```
+
+- @ImplortResource
+
+자주 사용되지 않는 일부 전용 태그는 아직 자바 코드와 어노테이션을 이용하는 방식이 지원되지 않는다. 또한 스프링 시큐리티와 같은 서브 프로젝트나 스프링 외의 오픈소스 라이브러리와 상용 제품에서 제공하는 스프링용 전용 태그는 XML 전용 태그만 지원될 수도 있다.
+
+꼭 필요한 XML 빈 설정만 별도의 파일로 작성한 뒤 @Configuration 클래스에서 @ImportResource를 사용해 XML 파일 위치를 지정해준다.
+
+```JAVA
+@Configuration
+@ImportResource("xml경로")
+public class AppConfig {
+}
+```
+
+- @EnableTransactionManagement
+
+@Configuration 클래스에서 사용하는 어노테이션이다. XML의 <tx:annotation-driver/> 태그와 동일한 기능을 수행한다. @Transactional로 트랜잭션 속성을 지정할 수 있게 해주는 AOP 관련 빈을 등록해주는 것이다.
+
+
+#### 1.5.3 웹 애플리케이션의 새로운 IoC 컨테이너 구성
+웹 환경에서는 보통 루트 애플리케이션 컨텍스트와 서블릿 애플리케이션 컨텍스트의 두 단계로 분리해 사용하는 경우가 일반적이라고 설명했다. 각각 web.xml의 <listener>와 <servlet>에 컨텍스트 설정 정보를 넣어 웹 애플리케이션이 시작될 때 자동으로 생성되게 만든다. 기본 메타정보는 XML이다. 그래서 contextConfigLocation파라미터를 이용해 XML 파일 위치를 지정해주거나 디폴트 XML파일인 /WEB-INF/applicationContext.xml을 사용한다.
+
+- 루트 애플리케이션 컨텍스트 등록
+
+```JAVA
+/**
+아래 listener 태그를 이용하여 디폴트 컨텍스트 클래스인 XmlWebApplicationContext 를 이용해 애플리케이션 컨텍스트를 만들고 /WEB-INF/applicationContext.xml을 설정파일로 사용한다.
+*/
+<listener>
+	<listener-class>org.springframework.web.context.ContextLoaderListener<listener-class>
+</listener>
+```
+
+@Configuration 어노테이션을 통한 루트컨텍스트 설정 방법은 아래와 같다.
+
+```JAVA
+<context-param>
+	<param-name>contextConfigLocation</param-name>
+	<param-value>패키지위치</param-value>
+</context-param>
+```
+
+- 서블릿 컨텍스트 등록
+
+서블릿 컨텍스트는 DispatcherServlet 을 등록하면 만들어진다. 루트 컨텍스트와 동일하게 XmlWebApplicationContext가 디폴트 컨텍스트 클래스다.
+
+앞에서 사용했던 @Configuration 같은 어노테이션은 <context:annotation-config /> 전용 태그에 의해 등록되는 컨테이너 인프라 빈이 스프링 컨테이너의 기능을 확장해줬기 때문에 사용할 수 있다고 설명했다.
+그렇다면 AnnotationConfigWebApplicationContext를 사용했을 때는 이런 컨테이너 인프라 빈을 어디에 등록해야 할까?
+
+답은 아무것도 안해도 된다. AnnotationConfigWebApplicationContext는 <context:annotation-config /> 이 등록해주는 빈을 기본적으로 추가해주기 때문이다.
+
+
+#### 1.5.4 런타임 환경 추상화와 프로파일
+스프링의 빈 설정 메타정보는 빈의 클래스와 값 속성, 다른 빈과의 관계로 이루어져 있다. 애플리케이션 기능이 바뀌지 않는다면 메타정보는 대부분 바뀌지 않지만 애플리케이션 동작 환경에 따라서 바뀌어야 하는 것도 있다. 특히 외부 리소스나 서버환경과 관련이 깊은 애플리케이션 인프라 빈의 클래스와 속성은 같은 애플리케이션이라고 하더라도 실행환경에 따라서 달라질 수 있다.
+
+##### 환경에 따른 빈 설정정보 변경 전략과 한계
+스프링으로 만든 애플리케이션은 성격이 다른 여러 환경에서 동작하게 된다. 개발환경, 테스트환경, 운영환경 정도로 구분할 수 있다.
+
+- 빈 설정파일의 변경
+
+가장 쉬운 방법은 여러 개의 설정정보 XML을 만들어서 환경에 따라 사용하는 XML을 나누는 것이다. 하지만 개발이나 유지보수가 진행되면서 설정정보 환경이 지속적으로 달라지는 경우라면 메타정보를 관리하는 것은 번거롭고 위험하다.
+
+- 프로퍼티 파일 활용
+
+환경에 따라 달라지는 정보를 담은 프로퍼티 파일을 활용하는 방법도 있다. 빈 설정 메타정보를 담은 XML이나 @Configuration 클래스는 애플리케이션 로직이 바뀌지 않는 한 건드리지 않고 환경에 따라 달라지는 외부 정보만 프로퍼티 파일 등에 두고 XML에서 읽어서 사용하는 방법이다. 각 환경에 따라 달라지는 정보만 프로퍼티 파일 등으로 준비하면 된다.
+
+주의사항으로는 소스코드를 배포할 때 프로퍼티 파일을 포함하지 않도록 주의해야 한다. 소스코드 버전 관리 툴이 서브 버전이라면 svn:ignore 프로퍼티를, git이라면 gitignore 등을 이용해 개발환경을 위한 프로퍼티 파일은 소스코드 리포지토리로 전달되지 않게 한다.
+
+```JAVA
+/**
+DataSource로 예시
+프로퍼티 치환자를 사용해 빈에 주입할 속성 정보를 외부 파일로 빼는 방법이다.
+*/
+
+<bean id="dataSource" class="...SimpleDriverDataSource">
+	<property name="driverClass" value="${db.driverclass}"/>
+	<property name="url" value="${db.url}"/>
+	<property name="username" value="${db.username}"/>
+	<property name="password" value="${db.password}"/>
+</bean>
+```
+
+##### 런타임 환경과 프로파일
+스프링 3.0까지는 XML을 통한 환경설정에 대한 뾰족한 해결책이 없었지만 3.1부터는 깔끔하게 해결할 수 있다. 런타임 환경 추상화를 이용하는 것이다.
+런타임 환경은 애플리케이션 컨텍스트에 새롭게 도입된 개념이다. 컨텍스트 내부에 Environment 인터페이스를 구현한 런타임 환경 오브젝트가 만들어져서 빈을 생성하거나 의존관계를 주입할 때 사용된다.
+
+런타임 환경은 프로파일과 프로퍼티 소스로 구성된다. 환경에 따라 프로파일과 프로퍼티 소스가 다르게 구성된 Environment 오브젝트가 사용되는 식이다.
+프로파일의 개념은 간단하다. 환경에 따라 다르게 구성되는 빈들을 다른 이름을 가진 프로파일 안에 정의한다. 애플리케이션 컨텍스트가 시작될 때 지정된 프로파일에 속한 빈들만 생성하게 되는 것이다.
+
+##### 활성 프로파일 지정 방법
+사용할 프로파일은 Environment 오브젝트에 setActiveProfiles()메서드가 있는데 여기에 사용할 프로파일 이름을 넣어주면 된다. 프로파일이 XML이 로딩되거나 @Configuration 클래스가 적용되는 refresh() 메서드가 컨텍스트에서 실행되기 전에 지정해줘야 한다.
+
+```JAVA
+GenericXmlApplicationContext ac = new GenericXmlApplicationContext();
+ac.getEnvironment().setActiveProfiles("dev");
+ac.load(getClass(), "applicationContext.xml");
+ac.refresh();
+```
+
+애플리케이션 컨텍스트는 서버에서 web.xml을 통해 간접적으로 생성하는 경우가 대부분이다. 이때는 활성 프로파일을 시스템 프로퍼티나 환경변수를 통해 지정할 수 있다.
+WAS 시동 스크립트에서 환경변수 spring.profiles.active에 dev를 넣고 WAS를 시작하면 dev 활성 프로파일이 적용되면서 컨텍스트가 만들어질 것이다.
+
+환경변수를 설정하는 대신 JVM의 커맨드라인 파라미터를 이용해 시스템 프로퍼티를 지정할 수 있다. 아래와 같이 -D 옵션을 사용하면 된다.
+
+-Dspring.profiles.active
+
+
+##### 프로파일 활용 전략
+프로파일은 한 번에 두 가지 이상을 활성화할 수도 있다. 예를 들어 DB 연결과 관련된 빈은 dsDev, dsTest, dsProduction 의 세 가지 프로파일로 구분하고, 메일 서버 접속과 관련된 빈은 실제 동작하는 메일 서버와 연결하는 빈을 가진 mailServer와 테스트용으로 사용할 목 오브젝트를 가진 mockMailServer 프로파일로 구분해놓을 수 있다.
+
+```JAVA
+<context-param>
+	<param-name>spring.profiles.active</param-name>
+	<param-value>dsDev, mockMailServer</param-value>
+</context-param>
+```
+
+이렇게 프로파일을 다양한 방식으로 나눠서 사용하는 경우에는 활성 프로파일을 지정할 때 애플리케이션이 바르게 동작하는 데 필요한 빈이 모두 포함되는지 유의해야 한다.
+프로파일을 적용하고 나면 애플리케이션에 적용된 활성 프로파일이 무엇인지, 그로 인해 등록된 빈은 어떤 것이 있는지 확인해보는 것이 좋다.
+컨텍스트 오브젝트의 getEnvironment() 메서드로 런타임 환경 오브젝트를 가져와서 getActiveProfiles() 메서드를 실행하면 활성 프로파일 목록을 가져올 수 있다.
+
+@Configuration 붙은 클래스를 이용해 빈을 정의하는 경우에도 프로파일을 지정할 수 있다. @Profile("지정된 프로파일명")
+
+#### 1.5.5 프로퍼티 소스
+
+##### 프로퍼티
+자바에서 말하는 프로퍼티는 기본적으로 키와 그에 대응되는 값의 쌍을 말한다. 스프링의 XML에서 <property>의 name과 value 어트리뷰트를 이용해 프로퍼티 정보를 표현한다.
+
+```JAVA
+// database.properties
+db.username=spring
+db.password=book
+
+// 프로퍼티 값 가져오기.
+Properties p = new Properties();
+p.load(new FileInputStream("database.properties"));
+```
+
+스프링에서는 <util:properties id="newProperties" location="database.properties" /> util 전용 태그를 이용해서 프로퍼티 파일의 내용을 읽어 초기화된 Properties 타입의 빈을 정의할 수 있다.
+
+또는 database.properties 파일을 읽어서 그 프로퍼티 키에 대응되는 치환자를 찾아 빈의 프로퍼티 값을 업데이트 해주는 기능이 있는 <context:property-placeholder> 를 사용하기도 한다.
+그런데 Properties 가 기본적으로 지원하는 프로퍼티 파일은 ISO-8859-1 인코딩만 지원하기 때문에 영문만 사용할 수 있다. 인코딩이 불가능한 문자는 유니코드 값을 대신 사용해야 한다.
+
+##### 스프링에서 사용되는 프로퍼티의 종류
+- 환경변수
+	- 스프링 애플리케이션이 구동되는 OS의 환경변수도 키와 값으로 표현되는 대표적인 프로퍼티다. 환경변수 프로퍼티는 같은 시스템에서 여러 개의 WAS를 구동하더라도 모두 동일하게 적용되는 매우 넓은 범위에 적용되는 프로퍼티다.
+
+- 시스템 프로퍼티
+	- 시스템 프로퍼티는 JVM 레벨에 정의된 프로퍼티를 말한다. JVM이 시작될 때 시스템 관련 정보 (os, name, user, home 등) 부터 자바 관련 정보 (java.home, java.version, java.class, path 등), 기타 JVM 관련 정보 등이 시스템 프로퍼티에 등록된다.
+
+- JNDI
+	- WAS 전체에 적용돼야 할 프로퍼티라면 시스템 프로퍼티가 좋겠지만, WAS에 여러 개의 웹 애플리케이션이 올라가고 그중 하나의 애플리케이션에만 프로퍼티를 지정하고 싶다면 JNDI 프로퍼티 또는 JNDI 환경 값을 사용하는 방법도 고려해볼 만 하다. 스프링에선 다음과 같은 전용 태그 한줄이면 충분하다. <jee:jndi-lookup id="db.username" jndi-name="db.username" />
+
+- 서블릿 컨텍스트 파라미터
+	- 웹 애플리케이션 레벨의 프로퍼티를 지정하고 싶긴 한데 서버에서 웹 애플리케이션 범위의 JNDI 값을 설정하기 번거롭다면 web.xml에 서블릿 컨텍스트 초기 파라미터를 프로퍼티로 사용할 수 있다.
+	- 스프링 애플리케이션에서 사용하는 방법
+	- ServletContext 오브젝트를 직접 빈에서 주입받은 뒤, ServletContext를 통해 컨텍스트 파라미터를 가져오는 방법
+	- ServletContextPropertyPlaceholderConfigurer를 사용하는 것.
+
+- 서블릿 컨픽 파라미터
+	- ServletContext 와 ServletConfig는 혼동하기 쉬운데, 전자는 서블릿이 소속된 웹 애플리케이션의 컨텍스트이고 후자는 개별 서블릿을 위한 설정이다.
+	- ServletContext는 특정 서블릿에 소속되지 않은 루트 컨텍스트에도 영향을 주지만, ServletConfig는 해당 서블릿의 서블릿 컨텍스트에만 영향을 준다.
+	- 접근방법은 ServletConfigAware 인터페이스를 구현하거나 @Autowired로 주입받아서 getInitParameter() 메서드를 사용한다.
+
+
+##### 프로파일의 통합과 추상화
+스프링 3.0까지는 프로퍼티 종류를 저장해두는 방식이 달라지면 이를 사용하는 방법도 달라져야 했다. 스프링3.1에서는 프로퍼티 소스라는 개념으로 추상화하고, 프로퍼티의 저장 위치에 상관없이 동일한 API를 가져올 수 있게 해준다. 프로퍼티 소스는 프로파일과 함께 런타임 환경정보를 구성하는 핵심 정보다. Environment 타입의 런타임 오브젝트를 이용하면 일관된 방식으로 프로퍼티 정보를 가져올 수 있다.
+
+StandardEnvironment는 기본적으로 다음 두 가지 종류의 프로퍼티 소스를 제공한다.
+
+- 시스템 프로퍼티 소스
+- 환경변수 프로퍼티 소스
+
+런타임 환경 오브젝트의 getProperty()를 호출하기만 하면 현재 런타임 환경에 등록된 모든 프로퍼티 소스를 뒤져서 프로퍼티 값을 찾아온다.
+따라서 프로퍼티 저장방식이 바뀌어도 이를 사용하는 코드는 수정할 필요가 없다.
+
+addFirst(), addLast(), addBefore(), addAfter()를 이용하여 프로퍼티를 등록할 수도 있다.
+
+
+##### 프로퍼티 소스의 사용
+
+- Environment.getProperty()
+
+가장 간단한 방법은 Environment 오브젝트를 빈에 주입바다서 직접 프로퍼티 값을 가져오는 것이다.
+필요할 때만 사용하는 프로퍼티라면 이렇게 코드에서 가져와서 사용해도 되겠지만, 해당 빈에서 반복적으로 사용해야 한다면 @PostConstruct 메서드를 이용해 클래스 멤버 필드에 미리 프로퍼티 값을 저장해두는 편이 낫다.
+
+- PropertySourceConfigurerPlaceholder와 <context:property-placeholder>
+
+@PostConstruct 어노테이션을 통한 메서드 생성 후 프로퍼티 값을 넣어주는 게 번거롭게 느껴진다면 @Value와 프로퍼티 ${} 치환자를 사용할 수도 있다.
+
+@Value에 치환자를 사용하려면 컨텍스트에 PropertySourcePlaceholderConfigurer 빈이 등록되어 있어야 한다. PropertySourcePlaceholderConfigurer 는 특정 프로퍼티 파일이 아니라 환경 오브젝트에 통합된 프로퍼티 소스로부터 프로퍼티 값을 가져와 컨텍스트의 @Value 또는 XML에 있는 ${} 치환자의 값을 바꿔주는 것이다.
+
+```JAVA
+/**
+ PropertySourcePlaceholderConfigurer 빈 등록
+반드시 static 메서드로 등록해야 한다. 이유는 PropertySourcePlaceholderConfigurer 가 BeanFactoryPostProcessor 후처리기로 되어있는데 @Bean 메서드를 처리하는 기능도 같은 BeanFactoryPostProcessor로 되어 있어서 @Bean 메서드에서 다른 후처리기를 만들어서 다시 @Bean 메서드가 있는 클래스의 빈 설정을 가공하도록 만들 수 없기 때문이다.
+*/
+
+@Bean
+public static PropertySourcePlaceholderConfigurer pspc() {
+	return new PropertySourcePlaceholderConfigurer();
+}
+```
+
+@Configuration 클래스를 함께 사용하는 경우라면 @Value의 치환자에도 적용되므로 PropertySourcePlaceholderConfigurer 빈을 중복해서 등록해줄 필요는 없다. 반대의 경우도 마찬가지다.
+
+
+##### @PropertySource와 프로퍼티 파일
+대표적인 프로퍼티 정보 저장 방식인 프로퍼티 파일도 프로퍼티 소스로 등록하고 사용할 수 있다. @PropertySource를 이용하면 된다.
+
+```JAVA
+@Configuration
+@ProperySource(name="myPropertySource", value={"database.properties", "settings.xml"})
+public class AppConfig {
+}
+```
+
+
+##### 웹 환경에서 사용되는 프로퍼티 소스와 프로퍼티 소스 초기화 오브젝트
+애플리케이션 컨텍스트를 코드에서 직접 생성하는 독립형 애플리케이션과 달리 웹 환경에서는 리스너나 서블릿에서 컨텍스트가 자동으로 생성된다. 이렇게 생성되는 애플리케이션 컨텍스트에 프로퍼티 소스를 추가하려면 애플리케이션 컨텍스트 초기화 오브젝트를 사용하면 된다.
+
+```JAVA
+/**
+ApplicationContextInitalizer는 컨텍스트가 생성된 후에 초기화 작업을 진행하는 오브젝트를 만들 때 사용한다.
+*/
+public interface ApplicationContextInitalizer<C extends ConfigurableApplicationContext> {
+	void initialize(C applicationContext);
+}
+
+/**
+ * description : ApplicationContextInitializer는 컨텍스트가 생성된 후에 초기화 작업을 진행하는 오브젝트를 만들 때 사용한다. 
+ * 대부분의 빈 메타정보는 XML 이나 @Configuration 클래스로 작성할 수 있기 때문에 별도의 초기화 과정이 필요없다.
+ * 하지만 오브젝트나 그에 포함되는 프로퍼티 소스는 빈이 아니고 컨텍스트가 생성하는 오브젝트이기 때문에 설정이 필요하다.
+ * */
+public class MyContextInitializer implements ApplicationContextInitializer<AnnotationConfigWebApplicationContext>{
+
+	@Override
+	public void initialize(AnnotationConfigWebApplicationContext applicationContext) {
+		ConfigurableEnvironment ce = applicationContext.getEnvironment();
+		
+		Map<String, Object> m = new HashMap<>();
+		m.put("db.username", "Spring");
+		
+		ce.getPropertySources().addFirst(new MapPropertySource("myPs", m));
+	}
+}
+```
+
+위 방법은 꼭 필요한 경우에만 사용하는 것을 권장한다.
+
+### 정리
+1장에서는 스프링의 컨테이너인 애플리케이션 컨텍스트를 이용해 빈을 정의하고 사용하는 방법을 알아봤다. 
+
+- 스프링 애플리케이션은 POJO 클래스와 빈 설정 메타정보로 구성된다.
+- 빈 설정 메타정보는 특정 포맷의 파일이나 리소스에 종속되지 않는다. 필요하다면 새로운 설정정보 작성 방법을 얼마든지 만들어 사용할 수 있다.
+- 스프링의 빈 등록 방법에는 크게 XML과 빈 자동인식, 자바코드 세 가지로 구분할 수 있다.
+- 프로퍼티 값은 빈에 주입되는 빈 오브젝트가 아닌 정보다.
+- 프로퍼티 값 중에서 환경에 따라 자주 바뀌는 것은 프로퍼티 파일과 같은 별도의 리소스 형태로 분리해놓는 것이 좋다.
+- 빈의 존재 범위인 스코프는 싱글톤과 프로토타입 그리고 기타 스코프로 구분할 수 있다.
+- 프로토타입과 싱글톤이 아닌 스코프 빈은 DL 방식을 이용하거나, 스코프 프록시 빈을 DI 받는 방법을 사용해야 한다.
+- 스프링 3.1은 어노테이션과 자바 코드를 이용한 빈 메타정보 작성 기능을 발전시켜서 자바 코드만으로도 스프링 애플리케이션의 모든 빈 설정이 가능하게 해준다.
+- 스프링 3.1의 프로파일과 프로퍼티 소스로 이뤄진 런타임 환경 추상화 기능을 이용하면 환경에 따라 달라지는 빈 구성과 속성 지정 문제를 쉽게 다룰 수 있다.
