@@ -121,3 +121,81 @@ SimpleJdbcTemplate 이 제공하는 기능은 실행, 조회, 배치의 세 가�
 
 ##### SimpleJdbcTemplate 생성
 DataSource는 보통 빈으로 등록해두므로 SimpleJdbcTemplate이 필요한 DAO에서 DataSource 빈을 DI 받아 SimpleJdbcTemplate을 생성해두고 사용하면 된다. SimpleJdbcTemplate은 멀티스레드 환경에서도 안전하게 공유해서 쓸 수 있기 때문에 DAO의 인스턴스 변수에 저장해두고 사용할 수 있다. 혹은 SimpleJdbcTemplate 자체를 싱글톤으로 등록하고 모든 DAO가 공유해서 사용하도록 만들어도 된다.
+
+##### SQL 파라미터
+SimpleJdbcTemplate은 SQL을 작성하는 문구에서 치환자를 통한 동적 바인딩이 가능하다. 또한 순서를 통한 바인딩이 아닌 이름을 통한 바인딩으로 :name 등으로 바인딩을 할 수 있는데 이름 치환자의 장점은 맵이나 오브젝트에 담긴 내용을 키 값이나 프로퍼티 이름을 이용해 바인딩할 수 있다는 것이다.
+
+- Map/MapSqlParameterSource
+
+```JAVA
+MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", 1).addValue("name", "spring");
+```
+
+- BeanPropertySqlParameterSource
+
+BeanPropertySqlParameterSource 는 맵 대신 도메인 오브젝트나 DTO를 사용하게 해준다. 도메인 오브젝트의 파라미터와 SQL 치환자의 이름만 같게 만들어주면 매우 편리하게 쓸 수 있다.
+
+```JAVA
+Member m = new Member("name", "addr");
+BeanPropertySqlParameterSource params = new BeanPropertySqlParameterSource(m);
+```
+
+##### SQL 조회 메서드
+- queryForObject(String sql, Class<T> requiredType, [SQL파라미터])
+
+쿼리 실행 시 하나의 값을 가져올 때 사용한다. 검색된 값이 없다면 EmptyResultDataAccessException 예외가 발생한다. 예외가 던져지길 원하지 않는다면 DAO에서 예외처리를 해줘야 한다.
+
+- queryForObject(String sql, RowMapper<T> rm, [SQL파라미터])
+
+앞의 매개변수의 클래스 타입과 다르게 다중 조건을 처리할 수 있다. 결과값은 동일하게 하나의 로우만 반환한다.
+
+- <T>List<T> query(String sql, RowMapper<T>rm, [SQL파라미터])
+
+SQL 실행 결과로 돌아온 여러 개의 컬럼을 가진 로우를 RowMapper 콜백을 이용해 도메인 오브젝트나 DTO에 매핑해준다. query()는 여러 개의 로우를 처리할 수 있다.
+
+- Map<String, Object> queryForMap(String sql, [SQL파라미터])
+
+단일 로우 결과를 처리하는 데 사용된다. 다만 queryForObject와 다르게 반환타입이 Map이다. 다건의 로우가 반환되면 예외를 던진다.
+
+- List<Map<String,Object>> queryForList(String sql, [SQL파라미터])
+
+queryForMap()의 다중버전이다.
+
+
+##### SQL 배치 메서드
+update()로 실행하는 SQL 들을 배치모드로 실행하게 해준다. addBatch() 와 executeBatch() 메서드를 이용해 여러 개의 SQL을 한 번에 처리한다. 많은 SQL을 한번에 처리하기 때문에 DB호출이 적어져서 성능 향상에 도움이 된다.
+
+SimpleJdbcTemplate은 내부적으로 스프링의 템플릿/콜백 방식을 사용하지만 직접 콜백 오브젝트를 작성해서 사용하는 것은 RowMapper뿐이다. 그나마도 미리 만들어진 BeanPropertyRowMapper를 사용하면 충분하기 때문에 굳이 콜백 오브젝트를 익명 내부 클래스로 구현할 필요가 없다. 대부분의 메서드는 SimpleJdbcTemplate에 내장된 콜백을 이용하기 때문에 편리하게 사용할 수 있다.
+
+
+#### 2.2.3 SimpleJdbcInsert
+
+##### SImpleJdbcInsert 생성
+SImpleJdbcInsert 는 테이블별로 만들어서 사용한다. 따라서 하나의 DAO에 여러개의 SImpleJdbcInsert 를 사용할 수 있다. SImpleJdbcInsert 는 멀티스레드 환경에서 안전하게 공유해서 사용할 수 있다.
+SImpleJdbcInsert 를 생성할 때는 DataSource가 필요하다. 생성 후 반드시 어떤 테이블을 적용할 지 초기화를 해줘야 한다.
+
+```JAVA
+
+/**
+ SimpleJdbcInsert 활용 예제
+*/
+SimpleJdbcInsert insert = new SimpleJdbcInsert(dataSource).withTableName("member");
+Member member = new Member(1, "Spring", 3.5);
+insert.execute(new BeanPropertySqlParameterSource(member));
+```
+
+
+#### 2.2.4 SimpleJdbcCall
+SimpleJdbcCall 은 DB에 생성해둔 저장 프로시저 또는 저장 펑션을 호출할 때 사용한다.
+
+##### SimpleJdbcCall 생성
+SimpleJdbcCall 은 dataSource를 이용해 생성한다. 멀티스레드 환경에 안전하게 공유 가능하므로 인스턴스 변수에 저장해두고 공유해서 사용해도 된다. 기본적으로 저장 프로시저나 저장 펑션 중의 하나로 초기화해줘야 한다.
+
+주요 메서드
+
+- SimpleJdbcCallOperations withProcedurName(String ProcedurName)
+- SimpleJdbcCallOperations withFunctionName(String functionName)
+- SimpleJdbcCallOperations returningResultSet(String parameterName, ParameterizedRowMapper rowMapper)
+
+
+#### 2.2.5 스프링 JDBC DAO
