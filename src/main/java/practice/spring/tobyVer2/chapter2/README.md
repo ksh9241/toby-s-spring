@@ -292,3 +292,106 @@ LocalContainerEntityManagerFactoryBean에는 dataSource 외에도 다음과 같�
 
 - jpaProperties, jpaPropetyMap
 	- EntityManagerFactory를 위한 프로퍼티를 지정할 때 사용한다.
+
+- jpaVendorAdapter
+	- jpaVendorAdapter를 이용하면 showSql 옵션 뿐 아니라 매핑 DDL을 자동 생성해주는 generateDdl과 database, DB 플랫폼 정보 등을 지정할 수 있다.
+	- 스프링은 현재 EclipseLink, Hibernate, OpenJpa, TopLink 의 네 가지 벤더를 위한 JpaVendorAdapter를 지원한다.
+
+- loadtimeWeaver
+	- JPA는 POJO 클래스를 ORM의 엔티티로 사용한다. 단순한 자바 코드로 만들어진 엔티티 클래스의 바이트코드를 직접 조작해서 확장된 기능을 추가하는 방식을 이용한다. 이를 통해 엔티티 오브젝트 사이에 지연로딩이 가능하고, 엔티티 값의 변화를 추적할 수 있으며, 최적화와 그룹 페칭(fetching) 등의 고급 기능을 적용할 수 있다.
+	- 런타임 시에 클래스를 로딩하면서 기능을 추가하는 것을 로드타임 위빙이라고 하며 이런 기능을 가진 클래스를 로드타임 위버라고 한다.
+	- 스프링에서는 JPA 벤더에 종속되지 않는 방법을 통해 로드타임 위빙 기능을 적용할 수 있다.
+
+#### 트랜잭션 매니저
+컨테이너가 관리하는 EntityManager 방식에서는 컨테이너가 제공하는 트랜잭션 매니저가 반드시 필요하다. 스프링의 LocalContainerEntityManagerFactoryBean 빈을 통해 컨테이너 관리 EntityManager를 사용할 때는 트랜잭션 매니저를 추가해야 한다.
+
+@Transactional이나 트랜잭션 AOP를 이용해서 트랜잭션 경계설정을 해주면 자동으로 JPA 트랜잭션을 시작하고 커밋하도록 만들 수 있다.
+
+### 2.4.2 EntityManager와 JpaTemplate
+JPA DAO에서 EntityManager를 사용하는 네 가지 방법
+
+#### JpaTemplate
+JdbcTemplate이나 SqlMapClientTemplate과 동일하게 템플릿 방식으로 JPA 코드를 작성할 수 있게 해준다.
+
+JpaDaoSupport 클래스를 상속해서 DAO를 만들면 아래 코드를 생략할 수 있다.
+
+JpaTemplate을 사용할 때는 기본적으로 JpaCallback 인터페이스의 doInJpa() 메서드에 필요한 작업을 넣는다.
+
+```java
+/**
+@Description : JpaTemplate을 사용하는 DAO
+*/
+private JpaTemplate jpaTemplate;
+
+@Autowired
+public void init (EntityManagerFactory emf) {
+	jpaTemplate = new JpaTemplate(emf);
+}
+```
+
+#### 애플리케이션 관리 EntityManager와 @PersistenceUnit
+EntityManager를 사용하는 두 번째 방법은 컨테이너 대신 애플리케이션 코드가 관리하는 EntityManager를 이용하는 것이다.
+
+```java
+// DI를 통한 EntityManagerFactory 의존성 주입
+@Autowired
+EntityManagerFactory entityManagerFactory;
+
+/** 
+JPA 표준 스펙에 나온 방식 
+javax.persistence
+*/
+@PersistenceUnit
+EntityManagerFactory emf;
+
+EntityManager em = entityManagerFactory.createEntityManager();
+
+em.getTransaction().begin();
+... // JPA 코드 생략
+em.getTransaction().commit();
+```
+
+#### 컨테이너 관리 EntityManager 와 @PersistenceContext
+EntityManager를 사용해 JPA 코드를 작성하는 가장 대표적인 방법은 컨테이너가 제공하는 EntityManager를 직접 제공받아서 사용하는 것이다.
+
+DAO가 컨테이너로부터 EntityManager를 직접 주입받으려면 JPA의 @PersistenceContext 어노테이션을 사용해야 한다.
+
+```java
+@PersistenceContext 
+EntityManager em;
+
+public void addMember(Member member) {
+	em.persist(member);
+}
+```
+
+EntityManager는 그 자체로 멀티스레드에서 공유해서 사용할 수 없다. 사용자 요청에 따라 만들어지는 스레드별로 독립적인 EntityManager가 만들어져 사용돼야 한다. 그런데 지금 코드를 보면 인스턴스 변수에 한 번 DI받아놓고 같은 오브젝트를 여러 스레드가 동시에 사용한다.
+이유는 @persistenceContext로 주입받은 EntityManager는 실제 EntityManager가 아니라 현재 진행 중인 트랜잭션에 연결되는 퍼시스턴스 컨텍스트를 갖는 일종의 프록시이기 때문이다.
+
+#### @PersistenceContext와 확장된 퍼시스턴스 컨텍스트
+위의 방법과 동일하게 @PersistenceContext를 통해 EntityManager를 주입받는다.
+다만 앞에 기본 옵션인 PersistenceContextType.TRANSACTION이 아닌
+PersistenceContextType.EXTENDED로 생성한다.
+이렇게 하면 트랜잭션 스코프 대신 확장된 스코프를갖는 EntityManager가 만들어진다.
+
+JPA에서 이 확장된 퍼시스턴스 컨텍스트는 상태유지 세션빈에 바인딩되는 것을 말한다.
+
+이 옵션을 적용한 EntityManager DI하면 멀티스레드에서 안전한 프록시 오브젝트가 아닌 멀티스레드에서 안전하지 않은 실제 EntityManager 상태다.
+
+확장된 퍼시스턴스 컨텍스트는 싱글톤 빈에 적용하면 안 된다.
+
+#### JPA 예외 변환
+JpaTemplate이 JPA API보다 나은점은 예외를 DataAccessException의 예외로 변환해준다는 점이다.
+
+#### JPA 에외 변환 AOP
+JpaTemplate을 사용하지 않고 JPA API를 사용하여 예외를 변환시킬 수도 있는데 스프링의 AOP를 이용하면 된다.
+이 방법을 이용하려면 다음 두 가지 작업이 필요하다.
+
+##### @Repository
+예외 변환이 필요한 DAO 클래스에 @Repository 스테레오 타입 어노테이션을 부여한다. 이 어노테이션이 붙은 클래스의 메서드는 AOP를 이용한 예외 변환 기능이 부가될 빈으로 선정된다.
+
+##### PersistenceException TranslationPostProcessor
+@Repository 어노테이션이 붙은 빈을 찾아서 예외 변환 기능을 가진 AOP 어드바이스를 적용해주는 후처리기가 필요하다.
+간단히 PersistenceExceptionTranslationPostProcessor를 빈으로 등록해주기만 하면 된다.
+
+하지만 이렇게 변환을 했다고 하더라도 JpaTemplate처럼 디테일한 예외로 변환시켜주진 못한다.
