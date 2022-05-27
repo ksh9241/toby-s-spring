@@ -395,3 +395,64 @@ JpaTemplate을 사용하지 않고 JPA API를 사용하여 예외를 변환시�
 간단히 PersistenceExceptionTranslationPostProcessor를 빈으로 등록해주기만 하면 된다.
 
 하지만 이렇게 변환을 했다고 하더라도 JpaTemplate처럼 디테일한 예외로 변환시켜주진 못한다.
+
+## 2.5 하이버네이트
+하이버네이트는 가장 크게 성공한 오픈소스 ORM 프레임워크다. 하이버네이트는 그 자체로 독립적인 API와 기능을 가진 ORM 제품이면서 동시에 JPA의 핵심 구현 제품이기도 하다.
+
+### 2.5.1 SessionFactory 등록
+JPA의 EntityManagerFactory 처럼 핵심 엔진 역할을 하는 SessionFactory가 있다. SessionFactory는 엔티티 매핑정보와 설정 프로퍼티 등을 이용해 초기화한 뒤에 애플리케이션에서 사용해야 한다.
+
+#### LocalSessionFactoryBean
+LocalSessionFactoryBean은 빈으로 등록된 DataSource를 이용해서 스프링이 제공하는 트랜잭션 매니저와 연동할 수 있도록 설정된 SessionFactory를 만들어주는 팩토리 빈이다.
+
+```java
+@Bean
+public LocalSessionFactoryBean sessionFactory() {
+    LocalSessionFactoryBean localSessionFactoryBean = new LocalSessionFactoryBean();
+    localSessionFactoryBean.setDataSource(dataSource());
+    localSessionFactoryBean.setPackagesToScan(packagesToScan());
+    localSessionFactoryBean.setHibernateProperties(additionalProperties());
+    return localSessionFactoryBean;
+}
+```
+
+### AnnotationSessionFactoryBean
+기본적으로 JPA에 정의된 매핑용 어노테이션을 그대로 사용할 수 있으며, 추가로 하이버네이트가 제공하는 확장 어노테이션을 이용하면 하이버네이트의 고급 매핑정보를 어노테이션을 이용해 정의해줄 수 있다.
+
+### 트랜잭션 매니저
+SessionFacotry를 통해 하이버네이트 DAO를 만들 때 스프링의 트랜잭션 경계설정 기능을 적용하려면 스프링이 제공하는 트랜잭션 매니저를 이용해야 한다.
+
+#### HibernateTransactionManager
+단일 DB를 사용하고 JTA를 이용할 필요가 없다면 간단히 HibernateTransactionManager 빈을 추가해주면 된다. HibernateTransactionManager 를 사용하면 하이버네이트 DAO와 JDBC DAO를 같은 트랜잭션으로 묶어서 동작시킬 수 있다.
+
+#### JtaTransactionManager
+여러 개의 DB에 대한 작업을 하나의 트랜잭션으로 묶으려면 JTA를 통해 서버가 제공하는 글로벌 트랜잭션 기능을 이용해야 한다. 스프링에서 JtaTransactionManager를 빈으로 등록해주면 된다.
+
+### 2.5.2 Session과 HibernateTemplate
+Session은 하이버네이트의 핵심 API다. 보통 트랜잭션과 동일한 스코프를 갖고 있다. 하이버네이트 DAO는 스프링이 관리하는 트랜잭션과 동기화된 Session을 가져와 사용한다.
+
+### HibernateTemplate
+스프링 템플릿/콜백 패턴이 적용된 HibernateTemplate을 이용하는 방법이다.
+하이버네이트 3.0.2부터 트랜잭션과 동기화된 Session을 손쉽게 가져올 수 있는 기능을 제공하기 시작했다. 스프링에서는 하이버네이트가 제공하는 Session 관리 기능의 확장 포인트를 이용해서 스프링의 트랜잭션 관리 기능을 하이버네이트의 기능과 맞물려 동작하게 한다.
+
+데이터 액세스 기술의 템플릿 스타일을 특별히 선호하는 경우가 아니라면 HibernateTemplate의 사용은 그다지 권장하지 않는다.
+
+### SessionFactory.getCurrentSession()
+하이버네이트 SessionFactory의 getCurrentSession() 메서드는 현재 트랜잭션에 연결되어 있는 하이버네이트 Session을 돌려준다. 이를 이용하면 스프링의 트랜잭션 매니저 또는 JTA의 트랜잭션에 연동되어 만들어지는 Session을 가져올 수 있다.
+
+하이버네이트 API는 런타임 예외를 던지기 때문에 try/catch 나 throws 선언은 필요없다.
+
+## 2.6 트랜잭션
+EJB (Enterprise Java Bean) 가 제공했던 엔터프라이즈 서비스에서 가장 매력적인 것은 바로 선언적 트랜잭션이다. 코드 내에서 직접 트랜잭션을 관리하고 트랜잭션 정보를 파라미터로 넘겨서 사용하지 않아도 된다. 트랜잭션이 시작되고 종료되는 지점은 별도의 설정을 통해 결정된다. 또 작은 단위로 분리되어 있는 데이터 액세스 로직과 비즈니스 로직 컴포넌트와 메서드를 조합해서 하나의 트랜잭션에서 동작하게 만드는 것도 간단하다. 의미있는 단위로 만들어진 오브젝트와 메서드를 적절한 순서대로 조합해서 호출하기만 하면 코드의 중복 없이 다양한 트랜잭션 안에서 동작하는 코드를 만들 수 있다.
+
+선언적 트랜잭션 경계설정을 사용하면 결국 코드의 중복을 제거하고 작은 단위의 컴포넌트로 쪼개서 개발한 후에 이를 조합해서 쓸 수 있다. 다양한 로직이 복잡하게 결합돼서 하나의 업무를 처리하는 엔터프라이즈 시스템의 요구조건을 가장 잘 충족시켜줄 기술이다.
+
+스프링의 트랜잭션은 매우 매력적인 기능이다. JavaEE 서버에서 동작하는 엔티티빈이나 JPA로 만든 컴포넌트에 JTA를 이용한 글로벌 트랜잭션을 적용해야만 가능했던 고급 기능을 간단한 톰캣 서버에서 동작하는 가벼운 애플리케이션에도 적용해주기 때문이다.
+
+### 2.6.1 트랜잭션 추상화와 동기화
+스프링이 제공하는 트랜잭션 서비스는 트랜잭션 추상화와 트랜잭션 동기화 두 가지로 생각해볼 수 있다. 트랜잭션 서비스는 데이터 액세스 기술은 변하지 않더라도 환경에 따라 바뀔 수 있기 때문이다. 또 스프링 없이 선언적 트랜잭션을 이용하려면 특정 기술과 서버 플랫폼, 특정 트랜잭션 서비스에 종속될 수밖에 없다.
+
+스프링은 데이터 액세스 기술과 트랜잭션 서비스 사이의 종속성을 제거하고 스프링이 제공하는 트랜잭션 추상 계층을 이용해서 트랜잭션 기능을 활용하도록 만들어준다.
+이를 통해 트랜잭션을 사용하는 코드는 그대로 유지할 수 있는 유연성을 얻을 수 있다.
+
+#### PlatformTransactionManager

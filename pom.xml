@@ -221,6 +221,13 @@
 		    <version>${org.springframework-version}</version>
 		</dependency>
 		
+		<!-- Hibernate -->
+		<dependency>
+		  <groupId>org.hibernate</groupId>
+		  <artifactId>hibernate-core</artifactId>
+		  <version>4.1.7.Final</version>
+		</dependency>
+		
 		<!-- 내장DB -->
 		<dependency>
             <groupId>org.hsqldb</groupId>
