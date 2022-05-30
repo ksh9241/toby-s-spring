@@ -647,3 +647,56 @@ ORM의 경우 엔티티 매니저나 세션에만 저장해둔다. 이는 지연
 JtaTransactionManager는 다른 트랜잭션 매니저와 다르게 DataSource나 SessionFactory 등의 빈을 참조하지 않는다. 대신 서버에 등록된 트랜잭션 매니저를 가져와 JTA를 이용해서 트랜잭션을 관리해줄 뿐이다.
 
 #### 독립형 JTA 트랜잭션 매니저
+JTA는 WAS가 제공하는 서비스를 이용하는 경우가 일반적이지만, 원한다면 서버의 지원 없이도 애플리케이션 안에 JTA 서비스 기능을 내장하는 독립형 JTA 방식으로 이용할 수 있다.
+
+독립형 JTA 트랜잭션 매니저는 ObjectWeb의 JTA 엔진인 JOTM과 Atomikos의 TransactionalEssentials가 대표적이다. 이 두가지 모두 JtaTransactionManager와 결합해서 JTA 트랜잭션 서비스로 사용할 수 있다.
+
+#### WAS 트랜잭션 매니저의 고급 기능 사용하기
+
+##### - WebSphereUowTransactionManager
+WebSphereUowTransactionManager 를 JtaTransactionManager 대신 사용하면 IBMWebSphere의 UOWManager를 통해 WebSphere가 제공하는 트랜잭션 서비스의 기능을 최대한 활용할 수 있다. JTA에서 기본적으로 보장되지 않는 트랜잭션 일시중단 기능이 제공되며, 이를 통해 REQUIRES_NEW 같은 트랜잭션 전파 속성을 사용할 수 있다.
+
+##### - WebLogicJtaTransactionManager
+WebLogic 서버의 트랜잭션 서비스를 최대한 활용할 수 있게 해준다. 트랜잭션 이름, 트랜잭션별 격리수준 설정, 트랜잭션의 일시중지와 재시작 등을 모두 활용할 수 있다.
+
+##### - OC4JJtaTransactionManager
+OCJ4 서버의 트랜잭션 기능에 최적화된 트랜잭션 매니저다. 오라클팀이 만들어서 스프링에 제공한 코드를 바탕으로 만들어졌다.
+
+위 세가지 서버의 경우 JtaTransactionManager를 사용하는 것보다 더 좋다.
+\<tx:jta-transaction-manager/> 를 통해 서버에서 자동으로 서버에 맞는 트랜잭션 매니저를 등록해준다.
+
+## 2.7 스프링 3.1의 데이터 액세스 기술
+
+### 2.7.1 persistence.xml 없이 JPA 사용하기
+JPA 엔티티 클래스가 담긴 패키지를 LocalContainerEntityManagerFactoryBean 빈의 packagesToScan 프로퍼티에 넣어주면 된다.
+
+### 2.7.2 하이버네이트 4지원
+org.springframework.orm.hibernate4 패키지 아래 클래스를 사용해야 한다.
+
+#### LocalSessionFactoryBean
+LocalSessionFactoryBean 는 hibernate3 의 LocalSessionFactoryBean와 이름은 같지만 기능은 AnnotationSessionFactoryBean 과 유사하다.
+
+#### LocalSessionFactoryBuilder
+LocalSessionFactoryBuilder 는 @Configuration 클래스에서 세션 팩토리 빈을 등록할 때 편리하게 사용할 수 있도록 만들어진 빌더 클래스다.
+
+### 2.7.3 @EnableTransactionManager
+@EnableTransactionManager 는 XML의 \<tx:annotation-driver />과 동일한 컨테이너 인프라 빈을 등록해주는 자바 코드 설정용 어노테이션이다. @Transactional 어노테이션을 이용한 트랜잭션 설정을 가능하게 해준다.
+
+트랜잭션 AOP 관련 인프라 빈들은 @EnableTransactionManager로 모두 등록된다.
+@EnableTransactionManager 는 PlatformTransactionManager 타입으로 등록된 빈을 찾기 때문에 이름은 신경쓰지 않아도 된다.
+
+트랜잭션 매니저가 두 개 이상 등록되어 있어서 어느 트랜잭션 매니저를 사용할지 @EnableTransactionManager 가 결정할 수 없거나 명시적으로 사용할 트랜잭션 매니저 빈을 설정하고 싶다면 TransactionManagementConfigurer 타입의 트랜잭션 관리 설정자를 이용해야 한다.
+
+
+### 2.7.4 JdbcTemplate 사용 권장
+스프링 3.1부터는 SimpleJdbcTemplate의 모든 기능을 JdbcTemplate과 NamedParameterJdbcTemplate이 제공하게 만들었고, SimpleJdbcTemplate은 더 이상 사용을 권장하지 않도록 @Deprecated 해버렸다.
+
+## 2.8 정리
+2장에서는 스프링이 지원하는 데이터 액세스 기술의 종류와 활용 방법을 알아봤다.
+
+- DAO 패턴을 이용하면 데이터 액세스 계층과 서비스 계층을 깔끔하게 분리하고 데이터 액세스 기술을 자유롭게 변경해서 사용할 수 있다.
+- 스프링 JDBC는 JDBC DAO 를 템플릿/콜백 방식을 이용해 편리하게 작성할 수 있게 해준다.
+- SQL 매핑 기능을 제공하는 iBatis로 DAO를 만들 때도 스프링의 템플릿/콜백 지원 기능을 사용할 수 있다.
+- JPA와 하이버네이트를 이용하는 DAO에서는 템플릿/콜백과 자체적인 API를 선택적으로 사용할 수 있다.
+- 트랜잭션 경계설정은 XML의 스키마 태그와 어노테이션을 이용해 정의할 수 있다. 또한 트랜잭션 AOP를 적용할 때는 프록시와 AspectJ를 사용할 수 있다.
+- 스프링은 하나 이상의 데이터 액세스 기술로 만들어진 DAO를 같은 트랜잭션 안에서 동작하도록 만들어준다. 하나 이상의 DB를 사용할 때는 JTA 지원 기능을 활용해야 한다.
