@@ -228,3 +228,42 @@ ConfigurableDispatcherServlet의 장점은 컨트롤러의 종류나 DispatcherS
 애플리케이션 특성상 컨트롤러의 역할이 크다면 책임의 성격과 특징, 변경 사유 등을 기준으로 세분화해줄 필요가 있다. 스프링 MVC가 컨트롤러 모델을 미리 제한하지 않고 어댑터 패턴을 사용해서라도 컨트롤러의 종류를 필요에 따라 확장할 수 있도록 만든 이유가 바로 이 때문이다.
 
 ### 3.3.1 컨트롤러의 종류와 핸들러 어댑터
+스프링 MVC가 지원하는 컨트롤러의 종류는 네 가지다. 각 컨트롤러를 DispatcherServlet에 연결해주는 핸들러 어댑터가 하나씩 있어야 하므로 핸들러 또한 네 개다. 이 중에서 SimpleServletHandlerAdapter를 제외한 세 개의 핸들러 어댑터는 DispatcherServlet에 디폴트 전략으로 설정되어 있다.
+
+#### Servlet과 SimpleServletHandlerAdapter
+첫 번째 컨트롤러 타입은 표준 서블릿이다. 기존에 서블릿으로 개발된 코드를 스프링 애플리케이션에 가져와 사용하려면 일단 서블릿을 web.xml에 별도로 등록하지 말고 스프링 MVC 컨트롤러로 등록해서 사용하는 게 좋다.
+장점으로는 서블릿 클래스를 그대로 사용하면서 스프링 빈으로 등록된다는 점이다.
+
+단 서블릿이 컨트롤러 빈으로 등록된 경우에는 자동으로 init(), destroy() 와 같은 생명주기 메서드가 호출되지 않는 점을 주의하자.
+
+#### HttpRequestHandler와 HttpRequestHandlerAdapter
+HttpRequestHandler는 인터페이스로 정의된 컨트롤러 타입이다. 서블릿 인터페이스와 비슷하다. 실제로 HttpRequestHandler는 서블릿처럼 동작하는 컨트롤러를 만들기 위해 사용한다. 전형적인 서블릿 스펙을 준수할 필요 없이 HTTP 프로토콜을 기반으로 한 전용 서비스를 만들려고 할 때 사용할 수 있다. HttpRequestHandler는 모델과 뷰 개념이 없는 HTTP 기반의 RMI (Remote Method Invocation)와 같은 로우레벨 서비스를 개발할 때 이용할 수 있다는 사실만 기억하자.
+
+#### Controller와 SimpleControllerHandlerAdapter
+SimpleControllerHandlerAdapter에 의해 실행되는 Controller 타입 컨트롤러는 인터페이스를 구현해서 만든다. 
+
+Controller 타입의 컨트롤러는 다른 컨트롤러보다 유연하게 클래스를 설계할 수 있지만, 권장하진 않는다. 이유는 웹 브라우저를 클라이언트로 갖는 컨트롤러로서의 필수 기능이 구현된 AbstractController를 상속해서 컨트롤러를 만드는 게 편리하기 때문이다.
+
+AbstractController 프로퍼티 목록
+
+##### - synchronizeOnSession
+HTTP 세션에 대한 동기화 여부를 결정하는 프로퍼티다. 
+
+##### - supportedMethods
+컨트롤러가 허용하는 HTTP 메서드 (GET, POST...) 를 지정할 수 있다.
+
+##### - useExpiresHeader, useCacheControlHeader, useCacheControlNoStore, cacheSeconds
+이 네 가지 프로퍼티는 Expires, Cache-control HTTP 헤더를 이용해서 브라우저의 캐시 설정정보를 보내줄 것인지를 결정한다.
+
+#### AnnotationMethodHandlerAdapter
+AnnotationMethodHandlerAdapter 는 여타 핸들러 어댑터와는 다른 독특한 특징이 있다. 가장 큰 특징은 지원하는 컨트롤러의 타입이 정해져 있지 않다는 점이다. 대신 클래스와 메서드에 붙은 몇 가지 어노테이션의 정보와 메서드 이름, 파라미터, 리턴 타입에 대한 규칙 등을 종합적으로 분석해서 컨트롤러를 선별하고 호출 방식을 결정한다. 그 덕분에 상당히 유연한 방식으로 컨트롤러를 작성할 수 있다.
+
+또 다른 특징은 컨트롤러 하나가 하나 이상의 URL과 매핑된다. AnnotationMethodHandlerAdapter은 URL 의 매핑을 컨트롤러 단위가 아니라 메서드 단위로 가능하게 했다.
+
+추가로 DefaultAnnotationHandlerMapping 핸들러 매핑과 함께 사용해야 한다.
+
+### 3.3.2 핸들러 매핑
+핸들러 매핑은 HTTP 요청정보를 이용해서 이를 처리할 핸들러 오브젝트, 즉 컨트롤러를 찾아주는 기능을 가진 DispatcherSerlvet의 전략이다. 하나의 핸들러 매핑 전략이 여러 가지 타입의 컨트롤러를 선택할 수 있다.
+
+핸들러 매핑 전략 목록
+#### BeanNameUrlHandlerMapping
