@@ -33,6 +33,7 @@ public class ServletTest {
 	@Test
 	public void mockSessionTest() {
 		MockHttpSession session = new MockHttpSession();
+		
 //		session.putValue("cart", new ShoppingCart(...));
 		
 //		req.setSession(session);

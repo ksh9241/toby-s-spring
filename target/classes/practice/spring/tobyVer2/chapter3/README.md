@@ -136,3 +136,95 @@ DispatcherServlet과 MVC 아키텍처가 적용된 웹 프레젠테이션 계층
 
 
 #### 테스트를 위한 DispatcherServlet 확장
+DispatcherServlet을 테스트하려면 DispatcherServlet의 디폴트 설정을 최대한 사용한다고 해도 준비할 게 제법 있다. WEB-INF 밑에 '서블릿명-servlet.xml' 이름을 가진 설정파일도 준비해줘야 한다. 다양한 전략의 DispatcherServlet를 테스트하려면 설정파일도 다수 만들어야 되고 설정파일 위치도 변경해줘야 한다.
+
+이러한 귀찮음을 해결하기 위한 테스트방법으로는 DispatcherServlet을 확장해서 사용하면 편리하다.
+
+```java
+/**
+ * @Description : 테스트를 위해 DispatcherServlet을 확장한 클래스
+ * */
+public class ConfigurableDispatcherServlet extends DispatcherServlet{
+	
+	private Class<?>[] classes;
+	private String[] locations;
+	
+	private ModelAndView mav;
+	
+	public ConfigurableDispatcherServlet(String[] locations) {
+		this.locations = locations;
+	}
+	
+	public ConfigurableDispatcherServlet(Class<?>[] classes) {
+		this.classes = classes;
+	}
+	
+	public void setLocations(String ...locations) {
+		this.locations = locations;
+	}
+	
+	// 주어진 클래스로부터 상대적인 위치의 클래스패스에 있는 설정파일을 지정할 수 있게 해준다.
+	public void setRelativeLocations(Class clazz, String ...relativeLocations) {
+		String[] locations = new String[relativeLocations.length];
+		String currentPath = ClassUtils.classPackageAsResourcePath(clazz) + "/";
+		
+		for (int i = 0; i < relativeLocations.length; i++) {
+			locations[i] = currentPath + relativeLocations[i];
+		}
+		
+		this.setLocations(locations);
+	}
+	
+	public void setclasses(Class<?> ...classes) {
+		this.classes = classes;
+	}
+	
+	// DispatcherServlet의 서블릿 컨텍스트를 생성하는 메서드를오버라이드해서 테스트용 메타정보를 이용해서 서블릿 컨텍스트를 생성한다.
+	protected WebApplicationContext createWebApplicationContext (ApplicationContext parent) {
+		AbstractRefreshableWebApplicationContext wac = new AbstractRefreshableWebApplicationContext() {
+			
+			@Override
+			protected void loadBeanDefinitions(DefaultListableBeanFactory beanFactory) throws BeansException, IOException {
+				if (locations != null) {
+					XmlBeanDefinitionReader xmlReader = new XmlBeanDefinitionReader(beanFactory);
+					xmlReader.loadBeanDefinitions(locations);
+				}
+				
+				if (classes != null) {
+					AnnotatedBeanDefinitionReader reader = new AnnotatedBeanDefinitionReader(beanFactory);
+					reader.register(classes);
+				}
+			}
+		};
+		
+		wac.setServletContext(getServletContext());
+		wac.setServletConfig(getServletConfig());
+		wac.refresh();
+		
+		return wac;
+	}
+	
+	// 뷰를 실행하는 과정을 가로채서 컨트롤러가 돌려준 ModelAndView 정보를 따로 저장해둔다.
+	@Override
+	protected void render(ModelAndView mv, HttpServletRequest req, HttpServletResponse res) throws Exception {
+		this.mav = mv;
+		super.render(mv, req, res);
+	}
+}
+```
+
+#### ConfigurableDispatcherServlet을 이용한 스프링 MVC 테스트
+ConfigurableDispatcherServlet의 장점은 컨트롤러의 종류나 DispatcherServlet의 전략 구성에 상관없이 적절한 웹 요청만 만들어주면, 스프링 MVC 애플리케이션이 동작하게 만들 수 있다는 점이다.
+
+그런데 DispatcherServlet 전략과 상관없이 컨트롤러 클래스의 로직을 테스트하는게 목적이라면 DispatcherServlet을 거치지 않고 컨트롤러에 바로 요청을 보내서 검증하는 방법이 낫다.
+
+이때는 순수하게 코드가 바르게 작성됐는지만 검증하려는 것이므로 DispatcherServlet에서 핸들러매핑 등이 제대로 됐는지의 테스트는 관심사항이 아니다.
+
+## 3.3 컨트롤러
+컨트롤러의 역할은 서비스 계층의 메서드를 선정하는 것과 메서드가 필요로 하는 파라미터 타입에 맞게 요청 정보를 변환해주는 것이다. 이후 서비스 계층의 작업이 끝난 후에 컨트롤러의 역할은 서비스 계층의 메서드가 돌려준 결과를 보고 어떤 뷰를 보여줘야 하는지 결정해야 한다. 때로는 페이지가 바뀌도록 리다이렉트 해줘야 한다. 뷰 선택이 끝나면 뷰에 출력할 내용을 모델에 적절한 이름으로 넣어줘야 한다.
+
+상태를 세션에 저장하는 경우도 있다. DB나 URL 파라미터, 쿠키에 저장하기 어려운 경우 세션에 정보를 저장하는 것도 컨트롤러의 책임이다. 때로는 더 이상 필요 없어진 세션의 오브젝트를 제거해주는 작업도 필요하다.
+
+애플리케이션 특성상 컨트롤러의 역할이 크다면 책임의 성격과 특징, 변경 사유 등을 기준으로 세분화해줄 필요가 있다. 스프링 MVC가 컨트롤러 모델을 미리 제한하지 않고 어댑터 패턴을 사용해서라도 컨트롤러의 종류를 필요에 따라 확장할 수 있도록 만든 이유가 바로 이 때문이다.
+
+### 3.3.1 컨트롤러의 종류와 핸들러 어댑터
