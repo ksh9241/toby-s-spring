@@ -37,5 +37,6 @@ public class ServletTest {
 //		session.putValue("cart", new ShoppingCart(...));
 		
 //		req.setSession(session);
+		
 	}
 }

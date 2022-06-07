@@ -266,4 +266,136 @@ AnnotationMethodHandlerAdapter 는 여타 핸들러 어댑터와는 다른 독�
 핸들러 매핑은 HTTP 요청정보를 이용해서 이를 처리할 핸들러 오브젝트, 즉 컨트롤러를 찾아주는 기능을 가진 DispatcherSerlvet의 전략이다. 하나의 핸들러 매핑 전략이 여러 가지 타입의 컨트롤러를 선택할 수 있다.
 
 핸들러 매핑 전략 목록
+
 #### BeanNameUrlHandlerMapping
+디폴트 핸들러 매핑의 하나다. 빈의 이름에 들어있는 URL을 HTTP 요청의 URL과 비교해서 일치하는 빈을 찾아준다. URL에는 ANT 패턴이라고 불리는 *, **나  ? 와 같은 와일드카드를 사용하는 패턴을 넣을 수 있다.
+
+#### ControllerBeanNameHandlerMapping
+ControllerBeanNameHandlerMapping은 빈의 아이디나 빈 이름을 이용해 매핑해주는 핸들러 매핑 전략이다.
+
+ControllerBeanNameHandlerMapping은 디폴트 매핑이 아니므로 사용하려면 빈으로 등록해줘야 한다. 특정 클래스를 빈으로 등록한 경우에는 디폴트 전략은 모두 무시된다.
+
+#### ControllerClassNameHandlerMapping
+ControllerClassNameHandlerMapping 은 빈 이름 대신 클래스 이름을 URL에 매핑해주는 핸들러 매핑 클래스다.
+
+디폴트 전략이 아니므로 사용하려면 빈으로 등록해줘야 한다.
+
+#### SimpleUrlHandlerMapping
+SimpleUrlHandlerMapping은 URL과 컨트롤러의 매핑정보를 한 곳에 모아놓을 수 있는 핸들러 매핑 전략이다.
+
+프로퍼티에 매핑정보를 직접 넣어줘야 하므로 SimpleUrlHandlerMapping 빈을 등록해야 사용할 수 있다.
+
+SimpleUrlHandlerMapping의 장점은 매핑정보가 한 곳에 모여 있기 때문에 URL을 관리하기가 편리하다는 것이다. 그래서 컨트롤러의 개수가 많은 대규모 프로젝트에서 선호한다.
+
+#### DefaultAnnotationHandlerMapping
+@RequestMapping이라는 어노테이션을 컨트롤러 클래스나 메서드에 직접 부여하고 이를 이용해 매핑하는 전략이다.
+
+#### 기타공통 설정정보
+핸들러 매핑 설정에서 공통적으로 사용되는 주요 프로퍼티만 간단히 설명 한다.
+
+##### - order
+핸들러 매핑은 한 개 이상을 동시에 사용할 수 있다. 기본적으로 이미 두 개의 매핑이 등록되어 있다. 물론 한 가지 매핑 방식으로 통일하면 가장 이상적이다.
+
+두 개의 핸들러 매핑을 사용할 때 동일한 URL 매핑정보를 주의해야 한다. 이런 경우를 위해 핸들러 매핑의 우선순위를 지정할 수 있다.
+
+##### - defaultHandler
+핸들러 매핑 빈의 defaultHandler 프로퍼티를 지정해두면 URL을 찾지 못했을 때 자동으로 디폴트 핸들러를 선택해준다. URL을 찾지못해 404에러를 던질 때 안내문구를 사용하는 URL로 설정해두면 편리하다.
+
+##### - alwaysUseFullPath
+URL 매핑은 기본적으로 웹 애플리케이션의 컨텍스트 패스와 서블릿 패스 두 가지를 제외한 나머지만 가지고 비교한다. URL 기준을 상대경로만 사용하는 이유는 웹 애플리케이션의 배치 경로와 서블릿 매핑을 변경하더라도 URL 매핑정보가 영향받지 않도록 하기 위해서다.
+
+HTML의 링크라면 상대경로를 사용하면 되지만 URL은 절대경로를 사용하므로 바뀌지 않는 부분만 매핑에 이용하는 것이 바람직하다.
+
+하지만 위의 옵션은 URL의 전체경로로 매핑해주길 원할 때 사용한다.
+
+##### - detectHandlerslnAncestorContexts
+일반적으로 자식 컨텍스트는 루트 컨텍스트를 참조할 수 있다. 하지만 핸들러 매핑의 경우는 다르다. 핸들러 매핑 클래스는 기본적으로 현재 컨텍스트 (서블릿 컨텍스트) 안에서만 매핑할 컨트롤러를 찾는다. 웹 환경에 종속적인 컨트롤러 빈은 서블릿 컨텍스트에만 두는 것이 바람직하기 때문이다.
+
+위 옵션을 true로 변경하면 부모 컨텍스트까지 뒤져서 매핑 대상 컨트롤러를 찾게 할 수는 있다. 하지만 절대 사용하지 말자.
+
+### 3.3.3 핸들러 인터셉터
+핸들러 인터셉터는 DispatcherServlet이 컨트롤러를 호출하기 전, 후처리 할수 있는 일종의 필터다.
+
+핸들러 매핑의 역할은 URL로부터 컨트롤러만 찾아주는 것이 아니다.
+핸들러 매핑은 DispatcherServlet이 매핑요청을 하면 핸들러매핑은 HandlerExecutionChain을 돌려준다. 핸들러 인터셉터를 설정하지 않았다면 바로 컨트롤러가 실행된다. 반면에 하나 이상의 핸들러 인터셉터를 지정했다면 순서에 따라 인터셉터를 거친 후에 컨트롤러가 호출된다.
+
+#### HandlerInterceptor
+핸들러 인터셉터는 HandlerInterceptor 인터페이스를 구현해서 만든다.
+
+##### - boolean preHandler()
+컨트롤러 호출 전에 실행된다. 반환값이 true면 핸들러 체인 다음 단계로 진행하고, false면 작업을 중단하고 리턴한다.
+
+##### - void postHandler()
+컨트롤러가 실행된 이후에 실행되는 메서드
+
+##### - void afterCompletion()
+메서드 이름 그대로 모든 뷰에서 최종 결과를 생성하는 일을 포함한 모든 작업을 완료된 후에 실행된다.
+
+#### 핸들러 인터셉터 적용
+핸들러 매핑 빈의 interceptors 프로퍼티를 이용해 핸들러 인터셉터 빈의 레퍼런스를 넣어주면 된다.
+
+핸들러 인터셉터는 기본적으로 핸들러 매핑 단위로 등록된다.
+
+### 3.3.4 컨트롤러 확장
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+public @Interface ViewName {
+	String value();
+}
+
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+public @Interface RequiredParams {
+	String[] value();
+}
+
+public class HelloController implements SimpleController {
+
+	@ViewName("/WEB-INF/view/hello.jsp")
+	@RequiredParams({"name"})
+	public void control(Map<String, String> params, Map<String, Object> model) {
+		model.put("message", "Hello " + params.get("name"));
+	}
+}
+
+public class SimpleHandlerAdapter implements HandlerAdapter{
+
+	// 이 핸들러 어댑터가 지원하는 타입을 확인해준다.
+	@Override
+	public boolean supports(Object handler) {
+		return (handler instanceof SimpleController);
+	}
+
+	
+	@Override
+	public ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler)
+			throws Exception {
+		Method m = ReflectionUtils.findMethod(handler.getClass(), "control", Map.class, Map.class);
+		
+		// 컨트롤러 메서드의 어노테이션에서 필요한 정보를 가져온다.
+		ViewName viewName = AnnotationUtils.getAnnotation(m, ViewName.class);
+		RequiredParams requiredParams = AnnotationUtils.getAnnotation(m, RequiredParams.class);
+		
+		Map<String, String> params = new HashMap<>();
+		for (String param : requiredParams.value()) {
+			String value = request.getParameter(param);
+			if (value == null) throw new IllegalStateException();
+			params.put(param, value);
+		}
+		
+		Map<String, Object> model = new HashMap<>();
+		
+		((SimpleController)handler).control(params, model);
+		
+		return new ModelAndView(viewName.value(), model); 
+	}
+
+	// getLastModified()는 컨트롤러의 getLastModified() 메서드를 다시 호출해서 컨트롤러가 결정하도록 만든다. 캐싱을 하지않으려면 0보다 작은 값을 리턴하면 된다. 
+	@Override
+	public long getLastModified(HttpServletRequest request, Object handler) {
+		return -1;
+	}
+}
+
+```
