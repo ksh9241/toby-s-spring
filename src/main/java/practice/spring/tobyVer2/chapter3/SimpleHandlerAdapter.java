@@ -1,11 +1,12 @@
 package practice.spring.tobyVer2.chapter3;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.hibernate.mapping.Map;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.web.servlet.HandlerAdapter;
@@ -29,7 +30,18 @@ public class SimpleHandlerAdapter implements HandlerAdapter{
 		ViewName viewName = AnnotationUtils.getAnnotation(m, ViewName.class);
 		RequiredParams requiredParams = AnnotationUtils.getAnnotation(m, RequiredParams.class);
 		
-		return null;
+		Map<String, String> params = new HashMap<>();
+		for (String param : requiredParams.value()) {
+			String value = request.getParameter(param);
+			if (value == null) throw new IllegalStateException();
+			params.put(param, value);
+		}
+		
+		Map<String, Object> model = new HashMap<>();
+		
+		((SimpleController)handler).control(params, model);
+		
+		return new ModelAndView(viewName.value(), model); 
 	}
 
 	// getLastModified()는 컨트롤러의 getLastModified() 메서드를 다시 호출해서 컨트롤러가 결정하도록 만든다. 캐싱을 하지않으려면 0보다 작은 값을 리턴하면 된다. 
@@ -37,5 +49,4 @@ public class SimpleHandlerAdapter implements HandlerAdapter{
 	public long getLastModified(HttpServletRequest request, Object handler) {
 		return -1;
 	}
-
 }
