@@ -399,3 +399,74 @@ public class SimpleHandlerAdapter implements HandlerAdapter{
 }
 
 ```
+
+## 3.4 뷰
+뷰는 모델이 가진 정보를 어떻게 표현해야 하는지에 대한 로직을 갖고 있는 컴포넌트다. 컨트롤러가 작업을 마친 후 뷰 정보를 ModelAndView 타입에 담아서 DispatcherServlet에 돌려주는 방법은 두 가지가 있다.
+
+1. 뷰 타입의 오브젝트를 돌려주기
+2. 뷰 이름 돌려주기
+	- 이때는 뷰 리졸버가 필요하다.
+
+### 3.4.1 뷰
+DispatcherServlet이 사용하는 뷰 오브젝트는 스프링의 View 인터페이스를 구현해야 한다. 하지만 직접 만들 필요는 없다. 스프링이 웹에서 자주 사용되는 타입의 콘텐트를 생성해주는 다양한 뷰를 이미 구현해놓았기 때문이다.
+
+뷰 사용 방법
+
+1. 스프링이 제공하는 기반 뷰 클래스 확장
+2. 스프링이 제공하는 뷰를 활용하되 뷰 클래스 자체를 상속하거나 코드를 작성하지 않고, JSP 등의 템플릿 파일을 사용한다.
+
+#### InternalResourceView와 JstlView
+InternalResourceView 는 RequestDispatcher의 forward() 나 include() 를 이용하는 뷰다.
+두 메서드는 다른 서블릿을 실행해서 결과를 현재 서블릿의 결과로 사용하거나 추가한다.
+
+```java
+// RequestDispatcher Example
+req.setAttribute("message", message);
+req.getRequestDispatcher("/WEB-INF/view/hello.jsp").forward(req, res);
+
+// InternalResourceView Example
+View view = new InternalResourceView("/WEB-INF/view/hello.jsp"); // 뷰 생성
+return new ModelAndView(view, model);
+```
+
+JstlView는 InternalResourceView의 서브클래스다. JstlView를 이용하면 지역화된 메시지를 JSP 뷰에 사용할 수 있게 해준다.
+
+#### RedirectView
+RedirectView 는 HttpServletResponse의 sendRedirect()를 호출해주는 기능을 가진 뷰다. 실제 뷰가 생성되는 게 아니라 URL만 만들어서 다른 페이지로 리다이렉트 된다.
+
+```java
+// Redirect 2 가지 사용 방법
+return new ModelAndView(new RedirectView("/main"));
+
+// 접두어를 사용하여 처리하기.
+return new ModelAndView("redirect:/main");
+```
+리다이렉트에서 쓰는 URL은 http://로 시작할 수도 있고, /로 시작할 수도 있다. /로 시작하는 경우 서버의 루트 URL로부터 시작돼야 한다. 웹 애플리케이션의 루트가 /가 아니라면 contextRelative를 true로 바꿔주는 것이 편하다.
+
+#### VelocityView, FreeMarkerView
+벨로시티와 프리마커는 자바 템플릿 엔진을 뷰로 사용하게 해준다. 벨로시티와 프리마커 뷰의 장점은 JSP에 비해 문법이 훨씬 강력하고 속도가 빠른 템플릿 엔진을 사용할 수 있다는 것이다.
+
+장점 
+- 매크로 같은 확장 기능을 만들기 쉽다.
+- 독립적인 템플릿 엔진으로 뷰를 실행하기 때문에 뷰 결과를 손쉽게 만들어낼 수 있어서 뷰 로직에 대한 단위테스트 작성에 유리하다.
+
+단점
+- 새로운 문법의 마크업 언어 학습 필요
+- IDE나 툴의 에디터 지원도 JSP보다는 상대적으로 떨어진다.
+- 표준 기술이 아니라서 서드파티 업체나 오픈소스 프로젝트 등을 통한 확장 기능 지원도 부족하다.
+
+
+#### MarshallingView
+마샬러 빈을 지정하고 모델에서 변환에 사용할 오브젝트를 지정해주면 OXM 마샬러를 통해 모델 오브젝트를 XML로 변환해서 뷰의 결과로 사용할 수 있다.
+
+#### AbstractExcelView, AbstractJExcelView, AbstractPdfView
+이 세 개의 뷰는 엑셀과 PDF 문서를 만들어주는 뷰다. 또한 상속을 통해서 코드를 구현해야 하는 뷰이기도 하다.
+
+빈으로 등록해서 컨트롤러에 DI 해주거나 뷰 리졸버를 통해 특정 뷰 이름에 매핑해주면된다. 하나의 컨트롤러에서만 독점적으로 사용하는 뷰라면 컨트롤러 안에서 직접 뷰 오브젝트를 생성해두고 사용해도 상관없다.
+
+#### MappingJacksonJsonView
+AJAX에서 많이 사용되는 JSON 타입의 콘텐츠를 작성해주는 뷰다. 기본적으로 모델의 모든 오브젝트를 JSON으로 변환해준다. 변환작업은 Jackson JSON 프로세서를 사용한다.
+
+
+### 3.4.2 뷰 리졸버
+뷰 리졸버는 핸들러 매핑이 URL로부터 컨트롤러를 찾아주는 것처럼, 뷰 이름으로부터 사용할 뷰 오브젝트를 찾아준다. 핸들러 매핑과 마찬가지로 뷰 리졸버도 하나 이상을 빈으로 등록해서 사용할 수 있다. 이때는 order의 프로퍼티를 이용해서 우선순위를 적용해주는 게 좋다.
