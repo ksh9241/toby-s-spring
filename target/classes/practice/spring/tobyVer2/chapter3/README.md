@@ -470,3 +470,87 @@ AJAX에서 많이 사용되는 JSON 타입의 콘텐츠를 작성해주는 뷰�
 
 ### 3.4.2 뷰 리졸버
 뷰 리졸버는 핸들러 매핑이 URL로부터 컨트롤러를 찾아주는 것처럼, 뷰 이름으로부터 사용할 뷰 오브젝트를 찾아준다. 핸들러 매핑과 마찬가지로 뷰 리졸버도 하나 이상을 빈으로 등록해서 사용할 수 있다. 이때는 order의 프로퍼티를 이용해서 우선순위를 적용해주는 게 좋다.
+
+#### InternalResourceViewResolver
+InternalResourceViewResolver는 뷰 리졸버를 지정하지 않았을 떄 디폴트로 적용되는 리졸버다.
+테스트가 아니라면 기본상태의 디폴트 뷰 리졸버를 그대로 사용하는 일은 피해야 한다.
+
+디폴트 상태로 사용할 경우 전체 경로를 다 적어줘야 한다. prefix, suffix 프로퍼티를 이용해서 헤더와 테일 값을 생략할 수 있다.
+
+InternalResourceViewResolver는 JSTL 라이브러리가 클래스패스에 존재하면 JSTL 의 부가기능을 지원하는 JstlView를 사용하고 존재하지 않으면 InternalResourceView를 사용한다.
+
+#### VelocityViewResolver, FreeMarketViewResolver
+사용 방법은 InternalResourceViewResolver와 비슷하다. 컨트롤러가 돌려준 뷰 이름에 prefix, suffix를 붙여서 실제 템플릿 파일 이름을 생성한다. 다만 JSP와는 다르게 템플릿의 경로를 만들 때 사용할 루트패스를 미리 VelocityConfigurer 나 FreeMarketConfigurer로 지정해줘야 한다.
+
+#### ContentNegotiatingViewResolver
+ContentNegotiatingViewResolver 는 여타 뷰 리졸버처럼 직접 뷰 이름으로부터 뷰 오브젝트를 찾아주지 않는다. 대신 미디어 타입 정보를 활용해서 다른 뷰 리졸버에게 뷰를 찾도록 위임한 후에 가장 적절한 뷰를 선정해서 돌려준다.
+
+뷰 리졸버를 결정해주는 리졸버라고 볼 수 있다.
+
+결정 방법
+- 미디어 타입 결정
+	- 미디어 타입은 HTTP의 콘텐트 타입에 대응된다. ContentNegotiatingViewResolver는 가장 먼저 사용자의 요청정보로부터 사용자가 요청한 미디어 타입 정보를 추출한다.
+	- 포맷을 지정하는 파라미터로부터 미디어 타입을 추출하는 방법
+	- HTTP 의 콘텐트 교섭에 사용되는 Accept 헤더의 설정을 이용하는 방법
+	- 위의 세 가지 방법에서 미디어 타입을 찾지 못했을 땐, defaultContentType 프로퍼티에 설정해준 디폴트 미디어 타입을 사용한다. 
+
+- 뷰 리졸버 위임을 통한 후보 뷰 선정
+	- 적용 가능한 뷰 후보를 찾는다. 일반적으로 여러 개의 뷰 리졸버를 사용하는 경우라면 order를 통한 우선순위의 뷰 리졸버를 통해 뷰를 찾는다. 우선순위가 낮으면 같은 뷰라도 무시되기도 한다. 반면 ContentNegotiatingViewResolver는 우선순위를 무시한 채 사용 가능한 뷰를 모두 반환한다.
+
+- 미디어 타입 비교를 통한 최종 뷰 선정
+	- 마지막으로 요청정보에서 가져온 미디어 타입과 뷰 리졸버에서 찾은 후보 뷰 목록을 매칭해서 사용할 뷰를 결정한다.
+
+이 세 가지 단계를 거처서 최종 뷰를 결정하는 것이 ContentNegotiatingViewResolver의 역할이다.
+사용자가 요청한 미디어 타입, 컨트롤러가 돌려준 뷰 이름, 뷰 리졸버에 등록된 뷰의 조합을 통해 뷰가 결정되는 것이다.
+
+## 3.5 기타 전략
+
+### 3.5.1 핸들러 예외 리졸버
+HandlerExceptionResolver 는 컨트롤러의 작업 중에 발생한 예외를 어떻게 처리할지 결정하는 전략이다.
+핸들러 예외 리졸버가 있다면 DispatcherServlet은 핸들러 예외 리졸버에게 해당 예외를 처리할 수 있는 지 확인 후 처리할 수 있다면 DispatcherServlet 밖으로 던지지 않고 해당 핸들러 예외 리졸버가 처리한다.
+
+```java
+/**
+HandlerExceptionResolver 인터페이스
+resolveException() : 예외에 따라서 사용할 뷰와 그 안에 들어갈 내용을 담은 모델을 돌려주도록 되어있다. 처리가 불가능 한 예외일 경우 null을 반환한다.
+*/
+@Override
+ModelAndView resolveException(HttpServletRequest req, HttpServletResponse res, Object handler, Exception ex);
+```
+
+
+#### AnnotationMethodHandlerExceptionResolver
+예외가 발생한 컨트롤러 내의 메서드 중에서 @ExceptionHandler 어노테이션이 붙은 메서드를 찾아 예외처리를 맡겨주는 핸들러 예외 리졸버다. 특정 컨트롤러의 작업 중에 발생하는 예외만 처리하는 예외 핸들러를 만들고 싶다면 이 방법이 가장 편리하다.
+
+```java
+/**
+ExceptionHandlerExample
+*/
+
+@ExceptionHandler(DataAccessException.class)
+public ModelAndView dataAccessExceptionHandler(DataAccessException ex) {
+	return new ModelAndView("dataexception").addObject("msg", ex.getMessage());
+}
+```
+
+#### ResponseStatusExceptionResolver
+ResponseStatusExceptionResolver는 특정 예외가 발생했을 때 단순한 HTTP 500 ERR 대신 의미있는 HTTP 응답 상태를 돌려주는 방법이다. 예외 클래스에 @ResponseStatus를 붙이고, HpptStatus에 정의되어 있는 HTTP 응답 상태 값을 value 엘리먼트에 지정한다.
+
+```java
+@ResponseStatus(value=HttpStatus.SERVICE_UNAVAILABLE, reason="서비스 일시 중지")
+public class NotInServiceException extends RuntimeException {
+}
+// 'HTTP 503 Service Unavailable - 서비스 일시 중지' 메시지로 반환됨.
+```
+
+이 방법의 단점은 @ResponseStatus를 붙여줄 수 있는 예외 클래스를 만들어서 사용해야 한다는 번거로움이 있다.
+
+#### DefaultHandlerExceptionResolver
+디폴트로 등록되는 것 중 위의 두 가지 예외 리졸버에서 처리하지 못한 예외를 다루는 마지막 핸들러 예외 리졸버는 DefaultHandlerExceptionResolver 다. 이 리졸버는 스프링에서 내부적으로 발생하는 주요 예외를 처리해주는 표준 예외처리 로직을 담고 있다.
+
+
+#### SimpleMappingExceptionResolver
+DefaultHandlerExceptionResolver는 디폴트 전략이 아니기 때문에 사용자가 직접 빈을 등록해줘야 한다. 실제로 활용하기에 가장 편리한 예외 리졸버다. 클라이언트에 예외문구를 던지는 것 보다 예외에 대한 뷰를 지정하여 예외페이지로 리다이렉트 한다.
+
+
+### 3.5.2 지역정보 리졸버
