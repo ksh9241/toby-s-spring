@@ -554,3 +554,88 @@ DefaultHandlerExceptionResolver는 디폴트 전략이 아니기 때문에 사�
 
 
 ### 3.5.2 지역정보 리졸버
+LocaleResolver는 애플리케이션에서 사용하는 지역정보를 결정하는 전략이다. 디폴트로 사용되는 AcceptHeaderLocaleResolver는 HTTP 헤더의 지역정보를 그대로 사용한다.
+
+브라우저 설정을 따르지 않고 사용자가 직접 변경하도록 만들려면 SessionLocaleResolver나 CookieLocaleResolver를 사용하는 것이 편리하다.
+
+### 3.5.3 멀티파트 리졸버
+파일 업로드와 같이 멀티파트 포맷의 요청정보를 처리하는 전략을 설정할 수 있다. 현재는 아파치 Commons와 FileUpload 라이브러리를 사용하는 CommonsMultipartResolver 한 가지만 지원된다. 디폴트가 없으므로 빈을 등록해줘야 한다.
+
+```java
+@Bean(name = "multipartResolver")
+public CommonsMultipartResolver getResolver() throws IOException {
+	CommonsMultipartResolver resolver = new CommonsMultipartResolver();
+	resolver.setMaxUploadSize(1024 * 1024 * 10);	// 10MB
+	resolver.setMaxUploadSizePerFile (1024 * 1024 * 20); // 20MB
+	resolver.setMaxInMemorySize (1024 * 1024); // 1MB
+	resolver.setUploadTempDir(new FileSystemResource("C:\\ftmp"));
+	resolver.setDefaultEncoding("UTF-8");
+	return resolver;
+}
+```
+
+DispatcherServlet은 클라이언트로부터 멀티파트 요청을 받으면 멀티파트 리졸버에게 요청해서 HttpServletRequest의 확장 타입인 MultipartHttpServletRequest 오브젝트로 전환한다.
+
+#### RequestToViewNameTranslator
+RequestToViewNameTranslator 전략은 컨트롤러에서 뷰 이름이나 뷰 오브젝트를 돌려주지 않았을 경우 HTTP 요청정보를 참고해서 뷰 이름을 생성해주는 로직을 담고 있다.
+
+ex)
+- /hello -> hello 
+- /admin/user.do -> admin/user
+
+## 3.6 스프링 3.1의 MVC
+
+### 3.6.1 플래시 맵 매니저 전략
+
+#### 플래시 맵
+플래시 맵은 플래시 어트리뷰트를 저장하는 맵이다. 웹 요청 사이에 전달되는 정보라면 HTTP 세션을 생각하겠지만 생명주기가 세션만큼 길지 않다. 다음 요청에서 한번 사용되고 바로 제거되는 특징이 있다. [Scope Request]
+
+플래시 어트리뷰트는 보통 다음 웹 요청에서 사용하고 제거한다. 그런데 AJAX를 이용한 서버 폴링처럼 사용자의 액션 없이 수시로 서버로 요청을 보내는 기능을 가진 웹 페이지에선 자칫하면 POST와 REDIRECT 사이에 다른 요청이 끼어들 위험이 있다.
+
+또 고려사항으로는 플래시 어트리뷰트가 저장된 뒤에 사용자가 브라우저를 중간에 닫거나 강제로 다른 페이지로 이동하여 플래시어트리뷰트가 사용되지 못한 경우 서버의 자원이 낭비되는 문제가 발생할 수 있다. 이 부분의 해결방법으로는 플래시 어트리뷰트가 일정 시간이 경과하면 강제로 제거하는 속성을 설정해야 한다.
+
+```java
+FlashMap fm = new FlashMap();
+fm.put("message", "메시지입니다.");
+fm.setTargetRequestPath("/user/list");
+fm.startExceptionPeriod(10);
+```
+
+#### 플래시 맵 매니저
+컨트롤러에서 만들어진 플래시 맵은 요청이 끝나기 전에 서버 어딘가에 저장돼야 한다. 플래시 맵을 저장, 유지, 조회, 제거 하는 등의 작업을 담당하는 오브젝트를 FlashMapManager 인터페이스를 구현해서 만든다.
+
+#### 플래시 맵 매니저 전략
+플래시 맵을 저장하는 요청과 이를 가져와 사용하고 삭제하는 요청 사이에 플래시 맵 정보를 가장 간단하게 저장하는 방법은 HTTP 세션을 이용하는 것이다. 혹은 NoSQL이나 RDB 같은 별도의 저장소에 저장하는 것도 가능하다.
+
+스프링 3.1에서는 디폴트로 설정되는 SessionFlashMapManager가 있다.
+
+### 3.6.2 WebApplicationInitializer를 이용한 컨텍스트 등록
+서블릿 컨텍스트를 초기화한다는 것은 주요한 설정 작업들, 대표적으로 서블릿 등록과 매핑, 리스너 등록, 필터 등록 같은 작업을 말한다.
+
+ServletContainerInitializer 를 이용하면 스프링 컨텍스트 설정과 등록 작업에 자바 코드를 이용할 수 있다. 기본적으로 ServletContainerInitializer를 구현한 클래스가 포함되어 있고, WebApplicationInitializer 인터페이스를 구현한 클래스를 찾아 컨텍스트의 초기화 작업을 위임한다.
+
+#### 루트 웹 컨텍스트 등록
+스프링은 서블릿 컨텍스트 리스너에서 루트 애플리케이션 컨텍스트를 만든다. 이유는 웹 애플리케이션이 시작하고 종료되는 시점에 이벤트가 발생하고, 리스너를 만들어두면 이 두 가지 이벤트를 전달받게 된다. 루트 컨텍스트의 생명주기가 서블릿 컨텍스트와 일치하기 때문이다.
+
+WebApplicationInitializer에서 루트컨텍스트를 만들지 않는 이유는 생성시점은 동일할 수 있으나 종료시점이 일치하지 않아서 리소스 반환을 종료시점에 맞출 수 없는 게 문제다.
+
+#### 서블릿 컨텍스트 등록
+서블릿 컨텍스트는 서블릿 안에서 초기화되고 서블릿이 종료될 때 같이 종료된다. 이 때 사용하는 서블릿이 DispatcherServlet이다.
+
+```java
+SerlvetRegistration.Dynamic dispatcher = servletContext.addServlet("spring", new DispatcherServlet());
+dispatcher.setLoadOnstartup(1);
+dispatcher.addMapping("/app/*");
+```
+
+## 3.7 정리
+스프링이 제공하는 MVC 프레임워크는 뛰어난 유연성과 확장 포인트를 제공한다. 스프링 MVC에서 MVC의 세 가지 핵심 컴포넌트와 이를 엮어주는 MVC 엔진인 DispatcherServlet에서 사용할 수 있는 다양한 전략이 제공된다.
+
+- 스프링 애플리케이션의 웹 계층에는 스프링 MVC와 스프링 포트폴리오의 웹 기술 그리고 서드파티 웹 프레임워크를 모두 사용할 수 있다.
+- 웹 계층의 테스트도 적절한 목 오브젝트를 이용한다면 서버에 배치하지 않고 자동으로 실행 가능한 단위 테스트로 작성할 수 있다.
+- 스프링 MVC의 핵심 엔진인 DispatcherServlet은 7가지 종류의 전략을 제공한다.
+- 컨트롤러는 여러 가지 방식으로 개발할 수 있다. 핸들러 어댑터를 함께 만든다면 새로운 컨트롤러 타입을 추가할 수 있다.
+- 핸들러 매핑은 다양한 전략을 통해 요청정보와 이를 처리하는 컨트롤러를 연결해준다.
+- 핸들러 인터셉터는 컨트롤러를 실행하기 전후에 적용할 부가기능을 만들 때 사용한다.
+- 뷰 리졸버는 컨트롤러가 리턴한 논리적인 뷰 이름을 이용해 뷰 오브젝트를 찾아준다.
+- 핸들러 예외 리졸버를 이용하면 애플리케이션에서 발생한 예외를 처리하는 방법을 지정해 줄 수 있다.
